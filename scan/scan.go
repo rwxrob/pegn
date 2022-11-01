@@ -7,7 +7,9 @@ import (
 // ws <- SP / TAB / CR / LF
 func WS(s pegn.Scanner) bool {
 	m := s.Mark()
-	s.Scan()
+	if !s.Scan() {
+		return false
+	}
 	switch s.Rune() {
 	case ' ', '\t', '\r', '\n':
 		return true

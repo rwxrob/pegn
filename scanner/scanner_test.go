@@ -232,11 +232,11 @@ func ExampleS_Finished() {
 	// Output:
 	// '\x00' 0-0 "foo"
 	// 'f' 0-1 "oo"
-	// 1
+	// false
 	// 'o' 1-2 "o"
-	// 2
+	// false
 	// 'o' 2-3 ""
-	// 3
+	// true
 
 }
 

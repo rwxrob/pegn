@@ -13,10 +13,17 @@ func ExampleWS() {
 
 	fmt.Println(scan.WS(s))
 	s.Print()
+	s.Scan()
+	s.Print()
+	fmt.Println(scan.WS(s))
+	s.Print()
 
 	// Output:
 	// false
 	// '\x00' 0-0 "1 "
+	// '1' 0-1 " "
+	// true
+	// ' ' 1-2 ""
 
 }
 
@@ -35,7 +42,7 @@ func ExampleSomeWS() {
 	// false
 	// '\x00' 0-0 "1 "
 	// '1' 0-1 " "
-	// false
+	// true
 	// ' ' 1-2 ""
 
 }
@@ -80,7 +87,7 @@ func ExampleScanEndLine_carriage_Not_Enough() {
 	// Output:
 	// '\x00' 0-0 "\r"
 	// false
-	// '\r' 0-1 ""
+	// '\x00' 0-0 "\r"
 
 }
 
