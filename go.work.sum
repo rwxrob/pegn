@@ -1,0 +1,7 @@
+github.com/rwxrob/fn v0.3.3 h1:ymRQGWDhrrvoHKXLJ4WZlgI2qrC7gMOotowQMGvwmVQ=
+github.com/rwxrob/fn v0.3.3/go.mod h1:omPqOqEB+dDna09z5pi5YFxq4IZqDvv3wFPUCES5LvY=
+github.com/rwxrob/json v0.7.0 h1:zj9/Wh2QgCfc8YqMzk8i1pC3CY3CH87zC3JlxYBf5QY=
+github.com/rwxrob/json v0.7.0/go.mod h1:BYaPIp+4cI64f7jdqkaVAjqU/HSIiwkqPNDr9tTUvRQ=
+github.com/rwxrob/structs v0.5.0 h1:pjLsfyYHS+gB1CtzRj3H39wRYL4lI5pTpFf8kl91guw=
+github.com/rwxrob/to v0.4.0 h1:/nu7p70/bvUw6ieja7MfALXHrAIbfBMLj3NBRbIfIqM=
+github.com/rwxrob/to v0.4.0/go.mod h1:MBLf3Q869UsJGm0n1Cm+kYCI7LvYyUrQaNSxSb6+Jsg=
