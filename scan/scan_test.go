@@ -8,96 +8,117 @@ import (
 )
 
 func ExampleSomeWS() {
+
 	s := scanner.New(`1 `)
-	//s.Trace++
+
 	fmt.Println(scan.SomeWS(s))
 	s.Print() // nothing advanced at all
 	s.Scan()
 	s.Print()
 	fmt.Println(scan.SomeWS(s))
 	s.Print()
+
 	// Output:
 	// false
-	// 0 '\x00' "1 "
-	// 1 '1' " "
-	// true
-	// 2 ' ' ""
+	// '1' 0-1 " "
+	// ' ' 1-2 ""
+	// false
+	// ' ' 1-2 ""
+
 }
 
 func ExampleEndLine_carriage_Feed() {
+
 	s := scanner.New("\r\n\r\n")
+
 	s.Print()
 	fmt.Println(scan.EndLine(s))
 	s.Print()
+
 	// Output:
-	// 0 '\x00' "\r\n\r\n"
+	// '\x00' 0-0 "\r\n\r\n"
 	// true
-	// 2 '\n' "\r\n"
+	// '\n' 1-2 "\r\n"
+
 }
 
 func ExampleEndLine_feed() {
+
 	s := scanner.New("\n")
 	s.Print()
 	fmt.Println(scan.EndLine(s))
 	s.Print()
-	// Output:
-	// 0 '\x00' "\n"
-	// true
-	// 1 '\n' ""
-}
 
-/*
+	// Output:
+	// '\x00' 0-0 "\n"
+	// true
+	// '\n' 0-1 ""
+
+}
 
 func ExampleScanEndLine_carriage_Not_Enough() {
-	s := new(scan.R)
-	s.B = []byte("\r")
+
+	s := scanner.New("\r")
+
 	s.Print()
-	fmt.Println(basemd.ScanEndLine(s))
+	fmt.Println(scan.EndLine(s))
 	s.Print()
+
 	// Output:
-	// 0 '\x00' "\r"
+	// '\x00' 0-0 "\r"
 	// false
-	// 0 '\x00' "\r"
+	// '\r' 0-1 ""
+
 }
 
-/*
-func ExampleScanEndParaline_Returns() {
-	s := new(scan.R)
-	s.B = []byte("\n\n")
-	fmt.Println(basemd.ScanEOB(s))
+func ExampleScanEndPara_line_Returns() {
+
+	s := scanner.New("\n\n")
+
+	fmt.Println(scan.EndPara(s))
 	s.Print()
+
 	// Output:
 	// true
-	// 2 '\n' ""
+	// '\n' 1-2 ""
+
 }
 
-func ExampleScanEOB_carriage_and_Line_Returns() {
-	s := new(scan.R)
-	s.B = []byte("\r\n\r\n")
-	fmt.Println(basemd.ScanEOB(s))
+func ExampleScanEndPara_carriage_and_Line_Returns() {
+
+	s := scanner.New("\r\n\r\n")
+
+	fmt.Println(scan.EndPara(s))
 	s.Print()
+
 	// Output:
 	// true
-	// 4 '\n' ""
+	// '\n' 3-4 ""
+
 }
 
-func ExampleScanEOB_odd_Returns() {
-	s := new(scan.R)
-	s.B = []byte("\r\n\n")
-	fmt.Println(basemd.ScanEOB(s))
+func ExampleScanEndPara_odd_Returns() {
+
+	s := scanner.New("\r\n\n")
+
+	fmt.Println(scan.EndPara(s))
 	s.Print()
+
 	// Output:
 	// true
-	// 3 '\n' ""
+	// '\n' 2-3 ""
+
 }
 
-func ExampleScanEOB_extra_WS() {
-	s := new(scan.R)
-	s.B = []byte("   \r\n\r\n\r\n")
-	fmt.Println(basemd.ScanEOB(s))
+func ExampleScanEndPara_extra_WS() {
+
+	s := scanner.New("   \r\n\r\n\r\n")
+
+	fmt.Println(scan.EndPara(s))
 	s.Print()
+
 	// Output:
 	// true
-	// 9 '\n' ""
+	// '\n' 8-9 ""
+
 }
-*/

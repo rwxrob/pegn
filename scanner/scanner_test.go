@@ -35,23 +35,23 @@ func ExampleS_Scan() {
 	s.Print()             // same as before
 
 	// Output:
-	// 0 '\x00' "foo"
+	// '\x00' 0-0 "foo"
 	// true
-	// 1 'f' "oo"
+	// 'f' 0-1 "oo"
 	// true
-	// 2 'o' "o"
+	// 'o' 1-2 "o"
 	// true
-	// 3 'o' ""
+	// 'o' 2-3 ""
 	// false
-	// 3 'o' ""
+	// 'o' 2-3 ""
 
 }
 
 func ExampleS_Scan_loop() {
 	s := scanner.New(`abcdefgh`)
 	for s.Scan() {
-		fmt.Print(string(s.R))
-		if s.P != len(s.B) {
+		fmt.Print(string(s.Rune()))
+		if !s.Finished() {
 			fmt.Print("-")
 		}
 	}
@@ -59,21 +59,20 @@ func ExampleS_Scan_loop() {
 	// a-b-c-d-e-f-g-h
 }
 
-func ExampleS_Scan_jump() {
+func ExampleS_Scan_risky_Jump() {
 
 	s := scanner.New(`foo1234`)
 	fmt.Println(s.Scan())
 	s.Print()
-	s.P += 2
-	fmt.Println(s.Scan())
+	s.E += 2              //😟 WARNING: s.R and s.B, not yet updated!
+	fmt.Println(s.Scan()) //😊 s.R and s.B now updated
 	s.Print()
 
 	// Output:
 	// true
-	// 1 'f' "oo1234"
+	// 'f' 0-1 "oo1234"
 	// true
-	// 4 '1' "234"
-
+	// '1' 3-4 "234"
 }
 
 func ExampleS_Is() {
@@ -144,20 +143,22 @@ func ExampleS_Match() {
 
 func ExampleS_Pos() {
 
+	//😟 WARNING: uses risky jumps (assigning s.E)
+
 	s := scanner.New("one line\nand another\r\nand yet another")
 
-	s.P = 2
+	s.E = 2
 	s.Pos().Print()
 
-	s.P = 0
+	s.E = 0
 	s.Scan()
 	s.Scan()
 	s.Pos().Print()
 
-	s.P = 12
+	s.E = 12
 	s.Pos().Print()
 
-	s.P = 27
+	s.E = 27
 	s.Pos().Print()
 
 	// Output:
@@ -185,6 +186,8 @@ func ExampleS_Positions() {
 
 func ExampleS_Report() {
 
+	//😟 WARNING: uses risky jumps (assigning s.E)
+
 	defer log.SetFlags(log.Flags())
 	defer log.SetOutput(os.Stderr)
 	log.SetOutput(os.Stdout)
@@ -195,7 +198,7 @@ func ExampleS_Report() {
 	s.Scan()
 	s.Report()
 
-	s.P = 14
+	s.E = 14
 	s.Report()
 
 	s.Error("sample error")
@@ -227,11 +230,12 @@ func ExampleS_End() {
 	fmt.Println(s.End())
 
 	// Output:
-	// 0 '\x00' "foo"
-	// 1 'f' "oo"
-	// false
-	// 2 'o' "o"
-	// false
-	// 3 'o' ""
-	// true
+	// '\x00' 0-0 "foo"
+	// 'f' 0-1 "oo"
+	// 1
+	// 'o' 1-2 "o"
+	// 2
+	// 'o' 2-3 ""
+	// 3
+
 }

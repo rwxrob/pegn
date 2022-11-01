@@ -3,7 +3,7 @@ package scan
 import "github.com/rwxrob/pegn"
 
 func SomeWS(s pegn.Scanner) bool {
-	r, p, pp := s.Mark()
+	m := s.Mark()
 	var found bool
 	for s.Scan() {
 		switch s.Rune() {
@@ -14,14 +14,14 @@ func SomeWS(s pegn.Scanner) bool {
 		break
 	}
 	if !found {
-		s.Back(r, p, pp)
+		s.Goto(m)
 	}
 	return found
 }
 
 // EndLine <- LF / CRLF
 func EndLine(s pegn.Scanner) bool {
-	r, p, pp := s.Mark()
+	m := s.Mark()
 	var found bool
 	s.Scan()
 	switch s.Rune() {
@@ -33,21 +33,21 @@ func EndLine(s pegn.Scanner) bool {
 		}
 	}
 	if !found {
-		s.Back(r, p, pp)
+		s.Goto(m)
 	}
 	return found
 }
 
 // EndPara <- ws* (!. / EndLine !. / EndLine{2})
 func EndPara(s pegn.Scanner) bool {
-	r, p, pp := s.Mark()
+	m := s.Mark()
 	var found bool
 TOP:
 	{
 		switch {
-		case s.End():
+		case s.Finished():
 			found = true
-		case EndLine(s) && s.End():
+		case EndLine(s) && s.Finished():
 			found = true
 		case EndLine(s) && EndLine(s):
 			found = true
@@ -57,7 +57,7 @@ TOP:
 		}
 	}
 	if !found {
-		s.Back(r, p, pp)
+		s.Goto(m)
 	}
 	return found
 }

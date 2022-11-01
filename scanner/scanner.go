@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"text/template"
 	"unicode/utf8"
+
+	"github.com/rwxrob/pegn"
 )
 
 // Trace activates tracing for anything using the package. This is
@@ -21,21 +23,13 @@ var Trace int
 // ViewLen sets the number of bytes to view before eliding the rest.
 var ViewLen = 20
 
-var DefaultErrorMessage = `failed to scan`
-
 // S (to avoid stuttering) implements a buffered data, non-linear,
-// rune-centric, scanner with regular expression support.  Keep in mind
-// that if and when you change the position (P) directly that rune (R)
-// will not itself be updated as it is only updated by calling Scan.
-// Often an update to the rune (R) as well would be inconsequential,
-// even wasteful.  When less performant scanner operations are okay and
-// or a higher level of abstraction allowed consider using the
-// pegn.Scanner interface methods instead.
+// rune-centric, scanner with regular expression support
 type S struct {
-	B        []byte             // full buffer for lookahead or behind
-	P        int                // index in B slice, points *after* R
-	PP       int                // index of previous Scan, points *to* R
-	R        rune               // last decoded, Scan updates, >1byte
+	Buf      []byte             // full buffer for lookahead or behind
+	R        rune               // last decoded/scanned rune, maybe >1byte
+	B        int                // index pointing beginning of R
+	E        int                // index pointing to end (after) R
 	Trace    int                // activate trace log (>0)
 	Errors   []error            // stack of errors in order
 	Template *template.Template // for Report()
@@ -47,41 +41,46 @@ type S struct {
 // Invalid arguments will fail (not fatal) with log output.
 func New(args ...any) *S {
 	s := new(S)
-	if len(args) > 0 {
+	switch len(args) {
+	case 2:
+		if c, ok := args[1].(pegn.Cursor); ok {
+			s.Goto(c)
+		}
+		fallthrough
+	case 1:
 		s.Buffer(args[0])
 	}
 	return s
 }
 
-func (s *S) Bytes() []byte       { return s.B }
-func (s *S) SetBytes(buf []byte) { s.B = buf }
-func (s *S) Rune() rune          { return s.R }
-func (s *S) SetRune(r rune)      { s.R = r }
-func (s *S) Cur() int            { return s.P }
-func (s *S) SetCur(p int)        { s.P = p }
-func (s *S) Prev() int           { return s.PP }
-func (s *S) SetPrev(p int)       { s.PP = p }
+func (s *S) Bytes() []byte      { return s.Buf }
+func (s *S) Rune() rune         { return s.R }
+func (s *S) RuneB() int         { return s.B }
+func (s *S) RuneE() int         { return s.E }
+func (s *S) Mark() pegn.Cursor  { return pegn.Cursor{s.R, s.B, s.E} }
+func (s *S) Goto(c pegn.Cursor) { s.R, s.E, s.B = s.R, s.E, s.B }
 
-// Buffer sets the internal bytes buffer and initializes all internal
-// pointers and state. This is useful when testing in order to buffer
-// strings as well as content from any io.Reader.
+// Buffer sets the internal bytes buffer (Buf) and resets the existing
+// cursor values to their initial state (null, 0,0). This is useful when
+// testing in order to buffer strings as well as content from any
+// io.Reader.
 func (s *S) Buffer(b any) {
 	switch v := b.(type) {
 	case string:
-		s.B = []byte(v)
+		s.Buf = []byte(v)
 	case []byte:
-		s.B = v
+		s.Buf = v
 	case io.Reader:
 		b, err := io.ReadAll(v)
 		if err != nil {
 			log.Printf("unable to read: %v", err)
 			return
 		}
-		s.B = b
+		s.Buf = b
 	}
 	s.R = '\x00'
-	s.P = 0
-	s.PP = 0
+	s.B = 0
+	s.E = 0
 }
 
 const DefaultTemplate = `
@@ -145,14 +144,14 @@ func (p Position) Log() { log.Println(p.String()) }
 // Pos returns a human-friendly Position for the current location.
 // When multiple positions are needed use Positions instead.
 
-func (s S) Pos() Position { return s.Positions(s.P)[0] }
+func (s S) Pos() Position { return s.Positions(s.E)[0] }
 
 // Positions returns human-friendly Position information (which can easily
-// be used to populate a text/template) for each raw byte offset (s.P).
-// Only one pass through the buffer (s.B) is required to count lines and
-// runes since the raw byte position (s.P) is frequently changed
+// be used to populate a text/template) for each raw byte offset (s.E).
+// Only one pass through the buffer (s.Buf) is required to count lines and
+// runes since the raw byte position (s.E) is frequently changed
 // directly.  Therefore, when multiple positions are wanted, consider
-// caching the raw byte positions (s.P) and calling Positions() once for
+// caching the raw byte positions (s.E) and calling Positions() once for
 // all of them.
 func (s S) Positions(p ...int) []Position {
 	pos := make([]Position, len(p))
@@ -166,7 +165,7 @@ func (s S) Positions(p ...int) []Position {
 	}
 
 	_rune, line, lbyte, lrune := 1, 1, 1, 1
-	_s := S{B: s.B}
+	_s := S{Buf: s.Buf}
 	//_s.Trace++
 
 	for _s.Scan() {
@@ -174,7 +173,7 @@ func (s S) Positions(p ...int) []Position {
 		for _, nl := range s.NewLine {
 			if _s.Is(nl) {
 				line++
-				_s.P += len(nl) - 1
+				_s.E += len(nl) - 1
 				_rune += len(nl) - 1
 				lbyte = 0
 				lrune = 0
@@ -183,10 +182,10 @@ func (s S) Positions(p ...int) []Position {
 		}
 
 		for i, v := range p {
-			if _s.P == v {
+			if _s.E == v {
 				pos[i] = Position{
 					Rune:    _s.R,
-					BufByte: _s.P,
+					BufByte: _s.E,
 					BufRune: _rune,
 					Line:    line,
 					LByte:   lbyte,
@@ -205,18 +204,18 @@ func (s S) Positions(p ...int) []Position {
 	return pos
 }
 
-// String implements fmt.Stringer with simply the position (P) and
+// String implements fmt.Stringer with simply the position (E) and
 // quoted rune (R) along with its Unicode. For printing more human
 // friendly information about the current scanner state use Report.
 func (s S) String() string {
-	end := s.P + ViewLen
+	end := s.E + ViewLen
 	elided := "..."
-	if end > len(s.B) {
-		end = len(s.B)
+	if end > len(s.Buf) {
+		end = len(s.Buf)
 		elided = ""
 	}
-	return fmt.Sprintf("%v %q %q%v",
-		s.P, s.R, s.B[s.P:end], elided)
+	return fmt.Sprintf("%v %q%v",
+		pegn.Cursor{s.R, s.B, s.E}, s.Buf[s.E:end], elided)
 }
 
 // Print is shorthand for fmt.Println(s).
@@ -231,21 +230,21 @@ func (s S) Log() { log.Println(s) }
 // decoded since most runes (ASCII) will usually be under this number.
 func (s *S) Scan() bool {
 
-	if s.P >= len(s.B) {
+	if s.E >= len(s.Buf) {
 		return false
 	}
 
 	ln := 1
-	r := rune(s.B[s.P])
+	r := rune(s.Buf[s.E])
 	if r > utf8.RuneSelf {
-		r, ln = utf8.DecodeRune(s.B[s.P:])
+		r, ln = utf8.DecodeRune(s.Buf[s.E:])
 		if ln == 0 {
 			return false
 		}
 	}
 
-	s.PP = s.P
-	s.P += ln
+	s.B = s.E
+	s.E += ln
 	s.R = r
 
 	if s.Trace > 0 || Trace > 0 {
@@ -259,36 +258,27 @@ func (s *S) Scan() bool {
 // in the buffer (s.P) forward. Returns false if the string
 // would go beyond the length of buffer (len(s.B)).
 func (s *S) Peek(a string) bool {
-	if len(a)+s.P > len(s.B) {
+	if len(a)+s.E > len(s.Buf) {
 		return false
 	}
-	if string(s.B[s.P:s.P+len(a)]) == a {
+	if string(s.Buf[s.E:s.E+len(a)]) == a {
 		return true
 	}
 	return false
 }
 
-// End returns true if scanner has nothing more to scan.
-func (s *S) End() bool { return s.P == len(s.B) }
-
-// Mark returns the main state values in order to jump Back() when
-// required during other scan operations. Mark fulfills the pegn.Scanner
-// interface.
-func (s *S) Mark() (rune, int, int) { return s.R, s.P, s.PP }
-
-// Back restores the main state of the scanner and fulfills the
-// pegn.Scanner interface.
-func (s *S) Back(r rune, p int, lp int) { s.R, s.P, s.PP = r, p, lp }
+// Finished returns true if scanner has nothing more to scan.
+func (s *S) Finished() bool { return s.E == len(s.Buf) }
 
 // Is returns true if the passed string matches the last scanned rune
 // and the runes ahead matching the length of the string.  Returns false
-// if the string would go beyond the length of buffer (len(s.B)).
+// if the string would go beyond the length of buffer (len(s.Buf)).
 func (s *S) Is(a string) bool {
-	if len(a)+s.PP > len(s.B) {
+	if len(a)+s.B > len(s.Buf) {
 		return false
 	}
 
-	if string(s.B[s.PP:s.PP+len(a)]) == a {
+	if string(s.Buf[s.B:s.B+len(a)]) == a {
 		return true
 	}
 	return false
@@ -300,9 +290,9 @@ func (s *S) Is(a string) bool {
 // Successful matches might be zero (see regexp.Regexp.FindIndex).
 // A negative value is returned if no match is found. Note that Go
 // regular expressions now include the Unicode character classes (ex:
-// \p{L}) that should be used over dated alternatives (ex: \w).
+// \p{L|d}) that should be used over dated alternatives (ex: \w).
 func (s *S) PeekMatch(re *regexp.Regexp) int {
-	loc := re.FindIndex(s.B[s.P:])
+	loc := re.FindIndex(s.Buf[s.E:])
 	if loc == nil {
 		return -1
 	}
@@ -313,14 +303,14 @@ func (s *S) PeekMatch(re *regexp.Regexp) int {
 }
 
 // Match checks for a regular expression match at the last position in
-// the buffer (s.PP) providing a mechanism for positive and negative
+// the buffer (s.B) providing a mechanism for positive and negative
 // lookahead expressions. It returns the length of the match.
 // Successful matches might be zero (see regexp.Regexp.FindIndex).
 // A negative value is returned if no match is found.  Note that Go
 // regular expressions now include the Unicode character classes (ex:
-// \p{L}) that should be used over dated alternatives (ex: \w).
+// \p{L|d}) that should be used over dated alternatives (ex: \w).
 func (s *S) Match(re *regexp.Regexp) int {
-	loc := re.FindIndex(s.B[s.PP:])
+	loc := re.FindIndex(s.Buf[s.B:])
 	if loc == nil {
 		return -1
 	}
@@ -351,34 +341,4 @@ func (s S) Report() {
 		return
 	}
 	log.Print(buf.String())
-}
-
-type Error struct {
-	P   int      // can be left blank if Pos is defined
-	Pos Position // can be left blank, Report will populate
-	Msg string
-}
-
-func (e Error) Error() string {
-	return fmt.Sprintf("%v at %v", e.Msg, e.Pos)
-}
-
-// Error adds an error to the Errors slice. Takes fmt.Sprintf() type
-// arguments. The current position (s.Pos) is saved with the error.
-// Since s.Pos scans to find the right location if there are multiple
-// errors anticipated consider directly appending to Errors instead and
-// only using the byte offset position (s.P). Report will detect if the
-// first of Errors does not have a Position and will populate them
-// efficiently before executing the template. For single errors, calling
-// this method should be fine.
-func (s *S) Error(a ...any) {
-	msg := DefaultErrorMessage
-	switch {
-	case len(a) > 0:
-		msg, _ = a[0].(string)
-	case len(a) > 1:
-		form, _ := a[0].(string)
-		msg = fmt.Sprintf(form, a[1:]...)
-	}
-	s.Errors = append(s.Errors, Error{Pos: s.Pos(), Msg: msg})
 }
