@@ -58,7 +58,7 @@ func (s *S) Rune() rune         { return s.R }
 func (s *S) RuneB() int         { return s.B }
 func (s *S) RuneE() int         { return s.E }
 func (s *S) Mark() pegn.Cursor  { return pegn.Cursor{s.R, s.B, s.E} }
-func (s *S) Goto(c pegn.Cursor) { s.R, s.E, s.B = s.R, s.E, s.B }
+func (s *S) Goto(c pegn.Cursor) { s.R, s.B, s.E = c.R, c.B, c.E }
 
 // Buffer sets the internal bytes buffer (Buf) and resets the existing
 // cursor values to their initial state (null, 0,0). This is useful when
