@@ -7,6 +7,19 @@ import (
 	"github.com/rwxrob/pegn/scanner"
 )
 
+func ExampleWS() {
+
+	s := scanner.New(`1 `)
+
+	fmt.Println(scan.WS(s))
+	s.Print()
+
+	// Output:
+	// false
+	// '\x00' 0-0 "1 "
+
+}
+
 func ExampleSomeWS() {
 
 	s := scanner.New(`1 `)
@@ -20,8 +33,8 @@ func ExampleSomeWS() {
 
 	// Output:
 	// false
+	// '\x00' 0-0 "1 "
 	// '1' 0-1 " "
-	// ' ' 1-2 ""
 	// false
 	// ' ' 1-2 ""
 

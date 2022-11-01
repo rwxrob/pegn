@@ -211,7 +211,7 @@ func ExampleS_Report() {
 
 }
 
-func ExampleS_End() {
+func ExampleS_Finished() {
 
 	s := scanner.New(`foo`)
 
@@ -219,15 +219,15 @@ func ExampleS_End() {
 
 	s.Scan()
 	s.Print()
-	fmt.Println(s.End())
+	fmt.Println(s.Finished())
 
 	s.Scan()
 	s.Print()
-	fmt.Println(s.End())
+	fmt.Println(s.Finished())
 
 	s.Scan()
 	s.Print()
-	fmt.Println(s.End())
+	fmt.Println(s.Finished())
 
 	// Output:
 	// '\x00' 0-0 "foo"
@@ -237,5 +237,28 @@ func ExampleS_End() {
 	// 2
 	// 'o' 2-3 ""
 	// 3
+
+}
+
+func ExampleMark() {
+
+	s := scanner.New(`foo`)
+
+	m := s.Mark()
+	fmt.Println(m)
+	s.Print()
+	s.Scan()
+	s.Print()
+	mm := s.Mark()
+	fmt.Println(mm)
+	s.Goto(m)
+	s.Print()
+
+	// Output:
+	// '\x00' 0-0
+	// '\x00' 0-0 "foo"
+	// 'f' 0-1 "oo"
+	// 'f' 0-1
+	// '\x00' 0-0 "foo"
 
 }

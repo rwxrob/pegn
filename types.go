@@ -74,6 +74,13 @@ type Scanner interface {
 	// MUST return true if there is nothing left to scan.
 
 	Finished() bool
+
+	// MUST provide a way to print the current position and state using
+	// the fmt package (Print) and the package log (Log) to facilitate
+	// ScanFunc development and example-based testing
+
+	Print()
+	Log()
 }
 
 type ScanFunc func(a Scanner) bool

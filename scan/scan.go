@@ -1,41 +1,47 @@
 package scan
 
-import "github.com/rwxrob/pegn"
+import (
+	"github.com/rwxrob/pegn"
+)
 
+// ws <- SP / TAB / CR / LF
+func WS(s pegn.Scanner) bool {
+	m := s.Mark()
+	s.Scan()
+	switch s.Rune() {
+	case ' ', '\t', '\r', '\n':
+		return true
+	}
+	s.Goto(m)
+	return false
+}
+
+// ws*
 func SomeWS(s pegn.Scanner) bool {
 	m := s.Mark()
-	var found bool
-	for s.Scan() {
-		switch s.Rune() {
-		case ' ', '\t', '\r', '\n':
-			found = true
-			continue
-		}
-		break
-	}
-	if !found {
+	if !WS(s) {
 		s.Goto(m)
+		return false
 	}
-	return found
+	for WS(s) {
+	}
+	return true
 }
 
 // EndLine <- LF / CRLF
 func EndLine(s pegn.Scanner) bool {
 	m := s.Mark()
-	var found bool
 	s.Scan()
 	switch s.Rune() {
 	case '\n':
-		found = true
+		return true
 	case '\r':
 		if s.Scan() && s.Rune() == '\n' {
-			found = true
+			return true
 		}
 	}
-	if !found {
-		s.Goto(m)
-	}
-	return found
+	s.Goto(m)
+	return false
 }
 
 // EndPara <- ws* (!. / EndLine !. / EndLine{2})
