@@ -25,15 +25,15 @@ for the next scan function.
 * **PEGN class names as all caps (like tokens)**
 
 With the requirement to provide an initial cap to export a function in
-Go otherwise all lower-case class names have been forced to all
-upper-case. This works out since there no name collisions between PEGN
-classes, tokens, and functions. The documentation disambiguates which
-are which.
+Go otherwise all lower-case PEGN class names have been forced to all
+upper-case. This works out since there is no name collisions between
+PEGN classes, tokens, and functions. The documentation disambiguates
+which is which.
 
 ```go
-pegn.WS(s)
-pegn.SPACE(s)
-pegn.SP(s)
+scan.WS(s)
+scan.SPACE(s)
+scan.SP(s)
 ```
 
 * **Add `Some` for greedy scans**
