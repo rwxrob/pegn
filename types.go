@@ -1,6 +1,9 @@
 package pegn
 
-import "fmt"
+import (
+	"fmt"
+	"io"
+)
 
 // Cursor points a specific location in the bytes buffer. The order of
 // fields is guaranteed to never change.
@@ -83,4 +86,7 @@ type Scanner interface {
 	Log()
 }
 
-type ScanFunc func(a Scanner) bool
+// ScanFunc validates an element of grammar optionally writing captured
+// portions of that element to the io.Writer if defined (for parsing and
+// additions to ASTs and such).
+type ScanFunc func(a Scanner, w io.Writer) bool
