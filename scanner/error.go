@@ -14,6 +14,7 @@ func (e Error) Error() string {
 	return fmt.Sprintf("%v at %v", e.Msg, e.Pos)
 }
 
+/*
 // Error adds an error to the Errors slice. Takes fmt.Sprintf() type
 // arguments. The current position (s.Pos) is saved with the error.
 // Since s.Pos scans to find the right location if there are multiple
@@ -33,3 +34,4 @@ func (s *S) Error(a ...any) {
 	}
 	s.Errors = append(s.Errors, Error{Pos: s.Pos(), Msg: msg})
 }
+*/

@@ -5,7 +5,7 @@ import (
 )
 
 // ws <- SP / TAB / CR / LF
-func WS(s pegn.Scanner) bool {
+func Is_ws(s pegn.Scanner) bool {
 	m := s.Mark()
 	if !s.Scan() {
 		return false

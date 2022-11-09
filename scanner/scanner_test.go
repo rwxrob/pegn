@@ -22,7 +22,6 @@ func ExampleS_init() {
 func ExampleS_Scan() {
 
 	s := scanner.New(`foo`)
-
 	s.Print() // equivalent of a "zero value"
 
 	fmt.Println(s.Scan())
