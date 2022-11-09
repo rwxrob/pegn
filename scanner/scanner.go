@@ -54,6 +54,7 @@ func New(args ...any) *S {
 }
 
 func (s *S) Bytes() []byte      { return s.Buf }
+func (s *S) SetBytes(b []byte)  { s.Buf, s.R, s.B, s.E = b, '\x00', 0, 0 }
 func (s *S) Rune() rune         { return s.R }
 func (s *S) RuneB() int         { return s.B }
 func (s *S) RuneE() int         { return s.E }
@@ -256,7 +257,8 @@ func (s *S) Scan() bool {
 
 // Peek returns true if the passed string matches from current position
 // in the buffer (s.P) forward. Returns false if the string
-// would go beyond the length of buffer (len(s.B)).
+// would go beyond the length of buffer (len(s.B)). Peek does not
+// advance the Scanner.
 func (s *S) Peek(a string) bool {
 	if len(a)+s.E > len(s.Buf) {
 		return false
@@ -270,10 +272,16 @@ func (s *S) Peek(a string) bool {
 // Finished returns true if scanner has nothing more to scan.
 func (s *S) Finished() bool { return s.E == len(s.Buf) }
 
+// Beginning returns true if and only if the scanner is currently
+// pointing to the beginning of the buffer without anything scanned at
+// all.
+func (s *S) Beginning() bool { return s.E == 0 }
+
 // Is returns true if the passed string matches the last scanned rune
 // and the runes ahead matching the length of the string.  Returns false
 // if the string would go beyond the length of buffer (len(s.Buf)).
 func (s *S) Is(a string) bool {
+
 	if len(a)+s.B > len(s.Buf) {
 		return false
 	}
@@ -281,6 +289,7 @@ func (s *S) Is(a string) bool {
 	if string(s.Buf[s.B:s.B+len(a)]) == a {
 		return true
 	}
+
 	return false
 }
 
@@ -292,14 +301,18 @@ func (s *S) Is(a string) bool {
 // regular expressions now include the Unicode character classes (ex:
 // \p{L|d}) that should be used over dated alternatives (ex: \w).
 func (s *S) PeekMatch(re *regexp.Regexp) int {
+
 	loc := re.FindIndex(s.Buf[s.E:])
 	if loc == nil {
 		return -1
 	}
+
 	if loc[0] == 0 {
 		return loc[1]
 	}
+
 	return -1
+
 }
 
 // Match checks for a regular expression match at the last position in
