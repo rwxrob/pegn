@@ -128,7 +128,11 @@ type Buffers interface {
 
 // Errors allow Scanner to keep track of errors and decide how many to
 // allow before stopping (whatever that means for the struct
-// implementing ErrStack).
+// implementing ErrStack). SetMaxErr is called by the highest level
+// caller in order to trigger a panic once that many errors have been
+// pushed onto the stack. Generally, implementations of ErrStack will
+// never panic unless MaxErr is reached and will expect and defer such
+// panics by design.
 type ErrStack interface {
 	MaxErr() int        // return max count of errs before quit
 	SetMaxErr(i int)    // sets max at which scanner will fail
@@ -209,43 +213,9 @@ type Rule interface {
 	NodeType() int         // associate a node to its parsing rule
 	Description() string   // human PEGN with language detection
 	PEGN() string          // formal PEGN specification with captures
-	Scan(s Scanner) bool   // advance scanner if true
+	Scan(s Scanner) bool   // advance scanner if true, push errors if false
 	Parse(s Scanner) *Node // advance and return parsed content
 }
-
-// ScanFunc takes a scanner and uses it to advance the scanner and
-// return true or not advance and return false optionally pushing any
-// errors encountered into the Scanner. ScanFunc types are often
-// assigned to private struct implementations of the Rule interface to
-// fulfill the Scan method.
-type ScanFunc func(s Scanner) bool
-
-// ParseFunc takes a scanner and uses it to parse a Node struct and then
-// returns it, returning nil if unable to parse and pushing errors
-// encountered into the Scanner. ParseFunc types are often
-// assigned to private struct implementations of the Rule interface to
-// fulfill the Parse method.
-type ParseFunc func(s Scanner) *Node
-
-// rule is a private implementation of the Rule interface for use with
-// package implementations of the PEGN rules
-type rule struct {
-	ident string
-	alias string
-	node  int
-	pegn  string
-	desc  string
-	scan  ScanFunc
-	parse ParseFunc
-}
-
-func (r rule) Ident() string         { return r.ident }
-func (r rule) Alias() string         { return r.alias }
-func (r rule) NodeType() int         { return r.node }
-func (r rule) Description() string   { return r.desc }
-func (r rule) PEGN() string          { return r.pegn }
-func (r rule) Scan(s Scanner) bool   { return r.scan(s) }
-func (r rule) Parse(s Scanner) *Node { return r.parse(s) }
 
 // Node is a typical node in a rooted node tree as required for any
 // abstract syntax tree. Note that PEGN does not allow node attributes

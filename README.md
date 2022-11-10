@@ -16,13 +16,17 @@ is up to each scan function.
 
 The scanner performing the scan must be in exactly the same state (rune,
 byte pointer, previous byte pointer, etc.) if the scan fails (returning
-`false`).
+`false`). The only exception is pushing one or more errors into the scanner's memory.
 
 * **Scan functions must advance on success**
 
 If a scanner function successfully matches it must leave the scanner
 pointing to the next byte in the bytes buffer (not yet scanned) ready
 for the next scan function.
+
+* **Scan failures must push errors onto error stack**
+
+If a Scan returns false it must push an error onto the scanner's error stack. It is up to the caller to decide to disregard it or not.
 
 * **No regular expressions**
 
