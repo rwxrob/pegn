@@ -1,6 +1,8 @@
 # PEGN Scanner, Parser, and AST in Go
 
-See the [doc.go](doc.go) for documentation of this Go package.
+**🤙Hey there, want to join the PEGN party? 🎉 Now accepting PRs for new Rule implementations. Have a question about how? Open an issue with your question and we'll help you until we can write a contributors guide. Thanks!**
+
+See the [pegn.go](pegn.go) file for documentation of this Go package.
 
 ## Design Considerations
 
@@ -21,29 +23,6 @@ byte pointer, previous byte pointer, etc.) if the scan fails (returning
 If a scanner function successfully matches it must leave the scanner
 pointing to the next byte in the bytes buffer (not yet scanned) ready
 for the next scan function.
-
-* **PEGN class names as all caps (like tokens)**
-
-With the requirement to provide an initial cap to export a function in
-Go otherwise all lower-case PEGN class names have been forced to all
-upper-case. This works out since there is no name collisions between
-PEGN classes, tokens, and functions. The documentation disambiguates
-which is which.
-
-```go
-scan.WS(s)
-scan.SPACE(s)
-scan.SP(s)
-```
-
-* **Add `Some` for greedy scans**
-
-Even though PEG itself calls for all repeating operators to be greedy by
-default, sometimes such is not wanted in this package library of scan
-functions. Therefore, anything prefixed with `Some` will continue to
-scan for as long as the content matches. For example, `SomeWS(s)` will
-consume all the white-space it finds from the current position, while
-`WS(s)` will only return true if the next rune is white space.
 
 * **No regular expressions**
 

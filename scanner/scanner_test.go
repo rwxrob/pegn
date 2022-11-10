@@ -2,8 +2,6 @@ package scanner_test
 
 import (
 	"fmt"
-	"log"
-	"os"
 	"regexp"
 
 	"github.com/rwxrob/pegn/scanner"
@@ -183,6 +181,7 @@ func ExampleS_Positions() {
 
 }
 
+/*
 func ExampleS_Report() {
 
 	//😟 WARNING: uses risky jumps (assigning s.E)
@@ -209,6 +208,7 @@ func ExampleS_Report() {
 	// error: sample error at U+0061 'a' 2,5-5 (14-14)
 
 }
+*/
 
 func ExampleS_Finished() {
 

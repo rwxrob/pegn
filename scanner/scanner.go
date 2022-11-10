@@ -65,7 +65,7 @@ func (s *S) Goto(c pegn.Cursor) { s.R, s.B, s.E = c.R, c.B, c.E }
 // cursor values to their initial state (null, 0,0). This is useful when
 // testing in order to buffer strings as well as content from any
 // io.Reader.
-func (s *S) Buffer(b any) {
+func (s *S) Buffer(b any) error {
 	switch v := b.(type) {
 	case string:
 		s.Buf = []byte(v)
@@ -74,14 +74,14 @@ func (s *S) Buffer(b any) {
 	case io.Reader:
 		b, err := io.ReadAll(v)
 		if err != nil {
-			log.Printf("unable to read: %v", err)
-			return
+			return err
 		}
 		s.Buf = b
 	}
 	s.R = '\x00'
 	s.B = 0
 	s.E = 0
+	return nil
 }
 
 const DefaultTemplate = `

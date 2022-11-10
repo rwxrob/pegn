@@ -22,6 +22,7 @@ and maintain.
 package pegn
 
 import (
+	"encoding/json"
 	"fmt"
 )
 
@@ -93,15 +94,12 @@ type Scanner interface {
 	//     for s.Scan() {
 	//         ...
 	//     }
-	//
-	// MUST return false if ErrStack.MaxErr has been reached.
 
 	Scan() bool
-	ScanBytes(a []byte) bool
-	ScanString(a string) bool
-	ScanRunes(a []rune) bool
-	ScanRune(a rune) bool
-	ErrStack
+
+	// MUST return false if ErrStack.MaxErr has been reached.
+
+	//ErrStack
 
 	// MUST return true if there is nothing left to scan.
 	// MUST return true if nothing has yet been scanned.
@@ -119,7 +117,7 @@ type Scanner interface {
 	// Buffering allows implementations of angle-bracket captures and
 	// rule-scoped variables.
 
-	Buffers
+	//Buffers
 }
 
 type Buffers interface {
@@ -149,37 +147,113 @@ type ErrStack interface {
 // handles a PEGN grammar rule definition. Rules are combined and
 // aggregated to create larger grammars.
 //
-// Implementations MUST define Scan and Parse. Usually, Parse is
-// just a Scan with capture enabled on the scanner.
+// Implementations must define Scan and Parse. Scan is for validation
+// while advancing the scanner. Parse productively produces a single
+// node either with a value or the first node under it. Parse must
+// return a node with either a value (V) or the first node under it (U),
+// never anything else. When parsing higher-level content the
+// first node under (U) will obviously have more of its fields assigned.
+// Note that an empty node value (V) is still a value and fulfills the
+// requirement for rules that may be simple validations of state at the
+// point in the scan. In such cases, the node type (T) is the only
+// useful field set. As such, all nodes returned by a Parse function must
+// assign a unique type integer to the node corresponding with that
+// specific rule even if the rule is similar to another.
 //
 // Even if Scan doesn't advance the scanner or parse any runes (i.e.
 // "rhetorical" assertions, look aheads, etc.) a Scan and Parse method
-// MUST always be defined.
+// must always be defined.
 //
-// The Name would normally be the identifier for a given definition
-// (on the left side of the PEGN <- arrow). Names MUST NOT
+// The Ident would normally be the identifier for a given definition
+// (on the left side of the PEGN arrow). Idents must not
 // conflict with other identifiers within a given grammar scope, but
 // specifying the method of grouping into a grammar is left up to the
 // specification creation and developer to decide. It is, however,
-// strongly recommended to define all Rules for a given grammar into the
+// strongly recommended to define all rules for a given grammar into the
 // same package so that naming conflicts can easily be identified.
 //
-// For international language support Description SHOULD detect the host
+// When picking a Ident use the same PEGN rule naming conventions:
+//
+//     * CAPS for tokens
+//     * lower for classes (with MixedCase Alias for convenience)
+//     * MixedCase for everything else
+//
+// Sometimes two rules might exist for parsing the same content in
+// different ways. For example, a Title rule could return the entire
+// text of a title as its value, while a TitleWords rule could return
+// a node with that exact same text split into individual Word nodes
+// added under it.
+//
+// When selecting a name for the actual struct instance implementation
+// a Rule consider the following conventions:
+//
+//     * Use Alias for classes (ws -> pegn.WhiteSpace)
+//     * CAPS for tokens (SP -> pegn.SP)
+//     * Mixed case for everything else (TitleWords -> pegn.TitleWords)
+//
+// For international language support Description should detect the host
 // language of the system and/or user. Other fields are not language
 // specific.
 //
+// Deprecation
+//
+// In order to maintain maximum compatibility for all dependencies, rule
+// implementations must never be removed or change their Ident,
+// Alias, or NodeType properties. Also, no two rules must ever have the
+// same Ident, Alias, or NodeType. The PEGN, Scan, and Parse
+// implementations may change, however, provided the results are
+// consistent.
+//
 type Rule interface {
-	Name() string         // unique name within grammar namespace
-	Description() string  // human PEGN with language detection
-	PEGN() string         // formal PEGN specification with captures
-	Scan(s Scanner) bool  // advance scanner if true
-	Parse(s Scanner) Node // advance and return parsed content
+	Ident() string         // identifier from PEGN following conventions
+	Alias() string         // mostly for classes (all-lower) names
+	NodeType() int         // associate a node to its parsing rule
+	Description() string   // human PEGN with language detection
+	PEGN() string          // formal PEGN specification with captures
+	Scan(s Scanner) bool   // advance scanner if true
+	Parse(s Scanner) *Node // advance and return parsed content
 }
 
-// Node abstracts a typical node in a rooted node tree as required for
-// any abstract syntax tree. Note that PEGN does not allow node
-// attributes of any kind and that Nodes with Nodes under them MUST NOT
-// also have a Value.
+// ScanFunc takes a scanner and uses it to advance the scanner and
+// return true or not advance and return false optionally pushing any
+// errors encountered into the Scanner. ScanFunc types are often
+// assigned to private struct implementations of the Rule interface to
+// fulfill the Scan method.
+type ScanFunc func(s Scanner) bool
+
+// ParseFunc takes a scanner and uses it to parse a Node struct and then
+// returns it, returning nil if unable to parse and pushing errors
+// encountered into the Scanner. ParseFunc types are often
+// assigned to private struct implementations of the Rule interface to
+// fulfill the Parse method.
+type ParseFunc func(s Scanner) *Node
+
+// rule is a private implementation of the Rule interface for use with
+// package implementations of the PEGN rules
+type rule struct {
+	ident string
+	alias string
+	node  int
+	pegn  string
+	desc  string
+	scan  ScanFunc
+	parse ParseFunc
+}
+
+func (r rule) Ident() string         { return r.ident }
+func (r rule) Alias() string         { return r.alias }
+func (r rule) NodeType() int         { return r.node }
+func (r rule) Description() string   { return r.desc }
+func (r rule) PEGN() string          { return r.pegn }
+func (r rule) Scan(s Scanner) bool   { return r.scan(s) }
+func (r rule) Parse(s Scanner) *Node { return r.parse(s) }
+
+// Node is a typical node in a rooted node tree as required for any
+// abstract syntax tree. Note that PEGN does not allow node attributes
+// of any kind and that Nodes with Nodes under them MUST NOT also have
+// a Value. The struct is deliberately minimal with only string
+// marshalling methods to ensure the least amount of conflict with
+// potential embedded uses of this struct by other packages.
 //
 // The Type integer often corresponds to the name (identifier) of the
 // PEGN rule used to parse the Node, but not necessarily. For example,
@@ -190,15 +264,33 @@ type Rule interface {
 // Some rules will inject additional or change runes in the Node.Value
 // as the rule is being evaluated.
 //
-type Node interface {
-	Type() int        // often corresponds to Rule.Name (but not always)
-	Value() string    // value for leaf nodes
-	Over() Node       // node immediately above this node
-	Under() []Node    // list of nodes immediately under this node
-	LastUnder() Node  // most recently added under
-	FirstUnder() Node // first added under
-	Left() Node       // immediately connected to the left
-	Right() Node      // immediate connected to the right
-	RightMost() Node  // farthest peer to the right
-	LeftMost() Node   // farthest peer to the left
+type Node struct {
+	T int    // node type (linked to Rule.NodeType)
+	V string // value (leaf nodes only)
+	O *Node  // node over this node
+	U *Node  // first node under this node (child)
+	R *Node  // node to immediate right
+}
+
+// Nodes walks from the first node under (U) to the last returning
+// a slice.
+func (n Node) Nodes() []*Node {
+	if n.U == nil {
+		return nil
+	}
+	var nodes []*Node
+	for cur := n.U; cur.R != nil; cur = cur.R {
+		nodes = append(nodes, cur)
+	}
+	return nodes
+}
+
+func (n Node) String() string {
+	s := struct {
+		T int
+		V string  `json:",omitempty"`
+		N []*Node `json:",omitempty"`
+	}{n.T, n.V, n.Nodes()}
+	byt, _ := json.Marshal(s)
+	return string(byt)
 }
