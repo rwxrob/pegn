@@ -130,15 +130,14 @@ type Buffers interface {
 // allow before stopping (whatever that means for the struct
 // implementing ErrStack).
 type ErrStack interface {
-	MaxErr() int                // return max count of errs before quit
-	SetMaxErr(i int)            // sets max at which scanner will
-	Errors() *[]error           // returns pointer to internal errors slice
-	Errorf(fm string, v ...any) // creates formatted error and pushes
-	ErrPush(e error)            // push error onto stack
-	ErrPop() error              // pop last error from stack
-	ErrShift() error            // shift oldest error from bottom of stack
-	ErrUnshift(e error)         // add new oldest error to bottom of stack
-	Error() string              // formatted error text (detects language)
+	MaxErr() int        // return max count of errs before quit
+	SetMaxErr(i int)    // sets max at which scanner will fail
+	Errors() *[]error   // returns pointer to internal errors stack
+	ErrPush(e error)    // push new error onto stack
+	ErrPop() error      // pop most recent error from stack
+	ErrShift() error    // shift first error from beginning of stack
+	ErrUnshift(e error) // add new first error to beginning of stack
+	Error() string      // formatted error text (detects language)
 }
 
 // Rule contains both specific and user-friendly instruction as to
@@ -250,19 +249,24 @@ func (r rule) Parse(s Scanner) *Node { return r.parse(s) }
 
 // Node is a typical node in a rooted node tree as required for any
 // abstract syntax tree. Note that PEGN does not allow node attributes
-// of any kind and that Nodes with Nodes under them MUST NOT also have
-// a Value. The struct is deliberately minimal with only string
+// of any kind and that Nodes with Nodes under them must not also have
+// a value (V).
+//
+// Minimal Design for Embedding
+//
+// The struct design is deliberately minimal with only Nodes, and String
 // marshalling methods to ensure the least amount of conflict with
-// potential embedded uses of this struct by other packages.
+// potential embedded dependencies, which are encouraged to provide
+// more involved handling of AST and other node trees when needed. Only
+// unmarshaling methods are being considered at the moment (JSON, etc.).
+//
+// Unique Rule Type Association
 //
 // The Type integer often corresponds to the name (identifier) of the
 // PEGN rule used to parse the Node, but not necessarily. For example,
 // some rules are simply assertions that do not capture nodes. Others
 // are not significant at all. Some don't even look at the content but
 // examine the state of the scanner itself (Finished, etc.).
-//
-// Some rules will inject additional or change runes in the Node.Value
-// as the rule is being evaluated.
 //
 type Node struct {
 	T int    // node type (linked to Rule.NodeType)
@@ -272,8 +276,7 @@ type Node struct {
 	R *Node  // node to immediate right
 }
 
-// Nodes walks from the first node under (U) to the last returning
-// a slice.
+// Nodes walks from the first node under (U) to the last returning a slice.
 func (n Node) Nodes() []*Node {
 	if n.U == nil {
 		return nil
@@ -285,6 +288,8 @@ func (n Node) Nodes() []*Node {
 	return nodes
 }
 
+// String fulfills the fmt.Stringer interface as JSON omitting any empty
+// value (V) or slice of nodes under (N).
 func (n Node) String() string {
 	s := struct {
 		T int

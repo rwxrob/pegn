@@ -256,8 +256,8 @@ func (s *S) Scan() bool {
 }
 
 // Peek returns true if the passed string matches from current position
-// in the buffer (s.P) forward. Returns false if the string
-// would go beyond the length of buffer (len(s.B)). Peek does not
+// in the buffer (s.B) forward. Returns false if the string
+// would go beyond the length of buffer (len(s.Buf)). Peek does not
 // advance the Scanner.
 func (s *S) Peek(a string) bool {
 	if len(a)+s.E > len(s.Buf) {

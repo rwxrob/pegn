@@ -7,10 +7,7 @@ var WhiteSpace = rule{
 	scan: ScanWhiteSpace,
 	parse: func(s Scanner) *Node {
 		if ScanWhiteSpace(s) {
-			n := new(Node)
-			n.T = 1
-			n.V = string(s.Rune())
-			return n
+			return &Node{T: 1, V: string(s.Rune())}
 		}
 		return nil
 	},
