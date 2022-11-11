@@ -247,7 +247,7 @@ func (s *S) Scan() bool {
 	s.E += ln
 	s.R = r
 
-	if s.viewlen > 0 {
+	if s.Trace > 0 {
 		s.Log()
 	}
 
