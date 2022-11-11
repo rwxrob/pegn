@@ -36,5 +36,5 @@ func (r _Field) Parse(s Scanner) *Node {
 	if !r.Scan(s) {
 		return nil
 	}
-	return &Node{T: FieldT, V: string((*m.Buf)[m.E:s.RuneE()])}
+	return &Node{T: FieldT, V: s.CopyEE(m)}
 }

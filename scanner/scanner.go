@@ -29,7 +29,8 @@ type S struct {
 	Trace    int                // non-zero activates tracing
 }
 
-var ViewLenDefault = 10
+var _ pegn.Scanner = (*S)(nil) // check "implements pegn.Scanner"
+var ViewLenDefault = 10        // default length of preview window
 
 // New is a high-level scanner constructor and initializer that takes
 // a single optional argument containing any valid Buffer() argument.
@@ -58,6 +59,38 @@ func (s *S) ViewLen() int       { return s.viewlen }
 func (s *S) SetViewLen(a int)   { s.viewlen = a }
 func (s *S) TraceOff()          { s.Trace = 0 }
 func (s *S) TraceOn()           { s.Trace++ }
+
+// CopyEE returns copy (n,m] fulfilling pegn.Scanner interface.
+func (s *S) CopyEE(m pegn.Cursor) string {
+	if m.B <= s.B {
+		return string(s.Buf[m.E:s.E])
+	}
+	return string(s.Buf[s.E:m.E])
+}
+
+// CopyBB returns copy [n,m] fulfilling pegn.Scanner interface.
+func (s *S) CopyBE(m pegn.Cursor) string {
+	if m.B <= s.B {
+		return string(s.Buf[m.B:s.E])
+	}
+	return string(s.Buf[s.B:m.E])
+}
+
+// CopyBB returns copy [n,m) fulfilling pegn.Scanner interface.
+func (s *S) CopyBB(m pegn.Cursor) string {
+	if m.B <= s.B {
+		return string(s.Buf[m.B:s.B])
+	}
+	return string(s.Buf[s.B:m.B])
+}
+
+// CopyEB returns copy (n,m) fulfilling pegn.Scanner interface.
+func (s *S) CopyEB(m pegn.Cursor) string {
+	if m.B <= s.B {
+		return string(s.Buf[m.E:s.B])
+	}
+	return string(s.Buf[s.E:m.B])
+}
 
 // Buffer sets the internal bytes buffer (Buf) and resets the existing
 // cursor values to their initial state (null, 0,0). This is useful when

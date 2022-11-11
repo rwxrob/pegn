@@ -51,32 +51,80 @@ func (c Cursor) String() string {
 	return fmt.Sprintf("%q %v-%v", c.R, c.B, c.E)
 }
 
-// A Scanner must employ design principles outlined by PEG including the
-// buffering of all bytes that will be used during the scan.
-//
-// Note that while movement around within the scanner bytes buffer is
-// meant to be done with Mark and Goto, scanner implementations are
-// allowed --- even encouraged --- to expose their internal struct
-// fields in addition to fulfilling this interface in order to provide
-// higher performance at the cost of interface abstraction when such
-// is required.
-//
-// See pegn/scanner for a usable implementation.
+// A Scanner implements a buffered rune scanner and must employ design
+// principles outlined by PEG including the buffering of all bytes that
+// will be used during the scan. See pegn/scanner for one usable
+// implementation.
 //
 // Bytes() *[]bytes
 //
-// Returns the pointer to the bytes buffer being scanned
-// providing direct access to the internal data being scanned.
-// PEG/N assumes infinite memory unlike older single-byte lookahead
-// designs. The byte slice can be modified without fear of disrupting
-// anything else within the Scanner so long as the current position is
-// updated appropriately. Bytes are most efficiently set this way. Use
-// Buffer for convenience at a higher-level.
+// Returns the pointer to the bytes buffer being scanned providing
+// direct access.  PEG/N assumes infinite memory unlike older
+// single-byte lookahead designs. The byte slice can be modified without
+// fear of disrupting anything else within the Scanner so long as the
+// current position is updated appropriately. Bytes are most efficiently
+// set this way. Use Buffer for convenience at a higher-level.
 //
 // Buffer(input any) error
 //
-// Must accept a string, []byte, or io.Reader as input (and potentially
-// other forms of input as well.
+// Must minimally accept a string, []byte, or io.Reader as input
+// parameter and load that into the *[]bytes return by Bytes method.
+//
+// Scan() bool
+//
+// Scans the next UNICODE code point (rune) beginning at position RuneE
+// in the Bytes buffer storing it into Rune and advancing RuneB and
+// RuneE appropriately depending on the byte size of the rune (uint32,
+// up to 4 bytes maximum). Scan must return false if failed to scan
+// a rune for whatever reason. Scanning the end of buffer should never
+// push an error to ErrStack. Scan is frequently used in the idiomatic
+// loop fashion.
+//
+//     for s.Scan() {
+//         ...
+//     }
+//
+type Scanner interface {
+	Bytes() *[]byte
+	Buffer(input any) error
+	Scan() bool
+
+	ScannerState
+	ScannerCursor
+	ScannerRangeCopy
+	ScannerObservability
+	//	ErrStack
+}
+
+// The ScannerState interface provides convenience methods for writing
+// grammar scan rules.
+//
+// Peek(a string) bool
+//
+// Peek returns true if the passed string matches from current position
+// in the buffer (s.RuneB) forward. Returns false if the string
+// would go beyond the length of buffer (len(s.Buf)). Peek does not
+// advance the Scanner.
+//
+// Finished() bool
+//
+// Returns true if Scan would fail because there is nothing left to
+// scan.
+//
+// Beginning() bool
+//
+// Returns true if no Scan has yet been called (identical to Rune ==
+// `\x00` or RuneB == 0 && RuneE == 0).
+//
+type ScannerState interface {
+	Peek(a string) bool
+	Finished() bool
+	Beginning() bool
+}
+
+// The ScannerCursor interface provides a one-rune cursor (1-4 bytes)
+// that includes the position of the beginning and ending of the rune
+// to allow quick bookmarking and repositioning within the bytes buffer.
 //
 // Rune() rune
 //
@@ -105,36 +153,16 @@ func (c Cursor) String() string {
 // Jumps to a specific position in the bytes buffer and sets the last
 // rune scanned as well.
 //
-// Peek(a string) bool
-//
-// Peek returns true if the passed string matches from current position
-// in the buffer (s.RuneB) forward. Returns false if the string
-// would go beyond the length of buffer (len(s.Buf)). Peek does not
-// advance the Scanner.
-//
-// Scan() bool
-//
-// Scans the next UNICODE code point (rune) beginning at position RuneE
-// in the Bytes buffer storing it into Rune and advancing RuneB and
-// RuneE appropriately depending on the byte size of the rune (uint32,
-// up to 4 bytes maximum). Scan must return false if failed to scan
-// a rune for whatever reason. Scanning the end of buffer should never
-// push an error to ErrStack. Scan is frequently used in the idiomatic
-// for loop fashion.
-//
-//     for s.Scan() {
-//         ...
-//     }
-//
-// Finished() bool
-//
-// Returns true if Scan would fail because there is nothing left to
-// scan.
-//
-// Beginning() bool
-//
-// Returns true if no Scan has yet been called (identical to Rune ==
-// `\x00` or RuneB == 0 && RuneE == 0).
+type ScannerCursor interface {
+	Mark() Cursor
+	Goto(a Cursor)
+	Rune() rune
+	RuneB() int
+	RuneE() int
+}
+
+// The ScannerObservability interface ensures that all implementations
+// have a consistent way to observe and test the Scanner state.
 //
 // SetViewLen(a int)
 //
@@ -172,32 +200,40 @@ func (c Cursor) String() string {
 //
 // Activate (deactivate) a Log call for ever call to Scan.
 //
-type Scanner interface {
-	Bytes() *[]byte
-	Buffer(input any) error
-	Rune() rune
-	RuneB() int
-	RuneE() int
-	Mark() Cursor
-	Goto(a Cursor)
-	Peek(a string) bool
-	Scan() bool
-	Finished() bool
-	Beginning() bool
+type ScannerObservability interface {
 	SetViewLen(a int)
 	ViewLen() int
 	Print()
 	Log()
 	TraceOn()
 	TraceOff()
-	//ErrStack
-	//Buffers
 }
 
-type Buffers interface {
-	BufBeg(name string)        // opens and begins caching buffer
-	BufEnd(name string)        // closes and frees resources for buffer
-	BufMap() map[string][]byte // return internal buffer map
+// The ScannerRangeCopy interface allow the scanner to return a copy
+// of the runes as a string from current scanner position to the cursor
+// passed. If the cursor passed is before the current position the first
+// cursor is the cursor passed. If the cursor passed is after the
+// current position then first cursor is the current position.
+//
+// For more direct access to the bytes buffer use Bytes() *[]byte
+// instead. The cursor passed must point to a valid position within the
+// bytes buffer or call will panic.
+//
+// The qualifiers B (beginning) and E (ending) indicate whether the range
+// is to the beginning or ending position (also B and E) of the cursor
+// indicating if that the cursor's Rune is included or not:
+//
+//    (n,m] - EE
+//    [n,m] - BE
+//    [n,m) - BB
+//    (n,m) - EB
+//
+type ScannerRangeCopy interface {
+	ScannerCursor
+	CopyEE(to Cursor) string
+	CopyBE(to Cursor) string
+	CopyBB(to Cursor) string
+	CopyEB(to Cursor) string
 }
 
 // Errors allow Scanner to keep track of errors and decide how many to
@@ -208,14 +244,11 @@ type Buffers interface {
 // never panic unless MaxErr is reached and will expect and defer such
 // panics by design.
 type ErrStack interface {
-	MaxErr() int        // return max count of errs before quit
-	SetMaxErr(i int)    // sets max at which scanner will fail
-	Errors() *[]error   // returns pointer to internal errors stack
-	ErrPush(e error)    // push new error onto stack
-	ErrPop() error      // pop most recent error from stack
-	ErrShift() error    // shift first error from beginning of stack
-	ErrUnshift(e error) // add new first error to beginning of stack
-	Error() string      // formatted error text (detects language)
+	SetMaxErr(i int)  // sets max at which scanner will panic
+	Errors() *[]error // returns pointer to internal errors stack
+	ErrPush(e error)  // push new error onto stack
+	ErrPop() error    // pop most recent error from stack
+	Error() string    // output all errors as text (detects language)
 }
 
 // Rule contains both specific and user-friendly instruction as to
