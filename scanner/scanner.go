@@ -15,14 +15,6 @@ import (
 	"github.com/rwxrob/pegn"
 )
 
-// Trace activates tracing for anything using the package. This is
-// sometimes more convenient when an application uses the package but
-// does not give access to the equivalent S.Trace property.
-var Trace int
-
-// ViewLen sets the number of bytes to view before eliding the rest.
-var ViewLen = 20
-
 // S (to avoid stuttering) implements a buffered data, non-linear,
 // rune-centric, scanner with regular expression support
 type S struct {
@@ -30,11 +22,14 @@ type S struct {
 	R        rune               // last decoded/scanned rune, maybe >1byte
 	B        int                // index pointing beginning of R
 	E        int                // index pointing to end (after) R
-	Trace    int                // activate trace log (>0)
 	Errors   []error            // stack of errors in order
 	Template *template.Template // for Report()
 	NewLine  []string           // []string{"\r\n","\n"} by default
+	viewlen  int                // length of bytes to show in preview
+	Trace    int                // non-zero activates tracing
 }
+
+var ViewLenDefault = 10
 
 // New is a high-level scanner constructor and initializer that takes
 // a single optional argument containing any valid Buffer() argument.
@@ -53,13 +48,16 @@ func New(args ...any) *S {
 	return s
 }
 
-func (s *S) Bytes() []byte      { return s.Buf }
-func (s *S) SetBytes(b []byte)  { s.Buf, s.R, s.B, s.E = b, '\x00', 0, 0 }
+func (s *S) Bytes() *[]byte     { return &s.Buf }
 func (s *S) Rune() rune         { return s.R }
 func (s *S) RuneB() int         { return s.B }
 func (s *S) RuneE() int         { return s.E }
 func (s *S) Mark() pegn.Cursor  { return pegn.Cursor{s.R, s.B, s.E} }
 func (s *S) Goto(c pegn.Cursor) { s.R, s.B, s.E = c.R, c.B, c.E }
+func (s *S) ViewLen() int       { return s.viewlen }
+func (s *S) SetViewLen(a int)   { s.viewlen = a }
+func (s *S) TraceOff()          { s.Trace = 0 }
+func (s *S) TraceOn()           { s.Trace++ }
 
 // Buffer sets the internal bytes buffer (Buf) and resets the existing
 // cursor values to their initial state (null, 0,0). This is useful when
@@ -209,14 +207,15 @@ func (s S) Positions(p ...int) []Position {
 // quoted rune (R) along with its Unicode. For printing more human
 // friendly information about the current scanner state use Report.
 func (s S) String() string {
-	end := s.E + ViewLen
-	elided := "..."
+	if s.viewlen == 0 {
+		s.viewlen = ViewLenDefault
+	}
+	end := s.E + s.viewlen
 	if end > len(s.Buf) {
 		end = len(s.Buf)
-		elided = ""
 	}
-	return fmt.Sprintf("%v %q%v",
-		pegn.Cursor{s.R, s.B, s.E}, s.Buf[s.E:end], elided)
+	return fmt.Sprintf("%v %q",
+		pegn.Cursor{s.R, s.B, s.E}, s.Buf[s.E:end])
 }
 
 // Print is shorthand for fmt.Println(s).
@@ -248,7 +247,7 @@ func (s *S) Scan() bool {
 	s.E += ln
 	s.R = r
 
-	if s.Trace > 0 || Trace > 0 {
+	if s.viewlen > 0 {
 		s.Log()
 	}
 

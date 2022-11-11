@@ -4,9 +4,9 @@ var WhiteSpace = _WhiteSpace{}
 
 type _WhiteSpace struct{}
 
+func (_WhiteSpace) Type() int     { return 1 }
 func (_WhiteSpace) Ident() string { return `ws` }
 func (_WhiteSpace) Alias() string { return `WhiteSpace` }
-func (_WhiteSpace) NodeType() int { return 1 }
 func (_WhiteSpace) PEGN() string  { return `SP / TAB / LF / CR` }
 
 func (_WhiteSpace) Description() string {
@@ -32,5 +32,5 @@ func (ws _WhiteSpace) Parse(s Scanner) *Node {
 	if !ws.Scan(s) {
 		return nil
 	}
-	return &Node{T: ws.NodeType(), V: string(s.Rune())}
+	return &Node{T: ws.Type(), V: string(s.Rune())}
 }

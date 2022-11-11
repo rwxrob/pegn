@@ -50,7 +50,7 @@ func (c Cursor) String() string {
 	return fmt.Sprintf("%q %v-%v", c.R, c.B, c.E)
 }
 
-// A RuneScanner must employ design principles outlined by PEG including the
+// A Scanner must employ design principles outlined by PEG including the
 // buffering of all bytes that will be used during the scan.
 //
 // Note that while movement around within the scanner bytes buffer is
@@ -62,61 +62,122 @@ func (c Cursor) String() string {
 //
 // See pegn/scanner for a usable implementation.
 //
+// Bytes() *[]bytes
+//
+// Returns the pointer to the bytes buffer being scanned
+// providing direct access to the internal data being scanned.
+// PEG/N assumes infinite memory unlike older single-byte lookahead
+// designs. The byte slice can be modified without fear of disrupting
+// anything else within the Scanner so long as the current position is
+// updated appropriately. Bytes are most efficiently set this way. Use
+// Buffer for convenience at a higher-level.
+//
+// Buffer(input any) error
+//
+// Must accept a string, []byte, or io.Reader as input (and potentially
+// other forms of input as well.
+//
+// Rune() rune
+//
+// Returns a copy of the last rune scanned (or null `\x00` if nothing yet
+// scanned).
+//
+// RuneB() int
+//
+// Returns the index in the bytes buffer pointing to the beginning of
+// the last rune scanned (Rune)
+//
+// RuneE() int
+//
+// Returns the index in the bytes buffer pointing to end of the last
+// rune scanned (Rune) and the beginning of the next rune to scan on
+// next call to Scan.
+//
+// Mark() Cursor
+//
+// Mark returns a Cursor struct pointing to the last Rune, and it's
+// location. Pass this to Goto to jump to another position in the bytes
+// buffer easily.
+//
+// Goto(a Cursor)
+//
+// Jumps to a specific position in the bytes buffer and sets the last
+// rune scanned as well.
+//
+// Scan() bool
+//
+// Scans the next UNICODE code point (rune) beginning at position RuneE
+// in the Bytes buffer storing it into Rune and advancing RuneB and
+// RuneE appropriately depending on the byte size of the rune (uint32,
+// up to 4 bytes maximum). Scan must return false if failed to scan
+// a rune for whatever reason. Scanning the end of buffer should never
+// push an error to ErrStack. Scan is frequently used in the idiomatic
+// for loop fashion.
+//
+//     for s.Scan() {
+//         ...
+//     }
+//
+// Finished() bool
+//
+// Returns true if Scan would fail because there is nothing left to
+// scan.
+//
+// Beginning() bool
+//
+// Returns true if no Scan has yet been called (identical to Rune ==
+// `\x00` or RuneB == 0 && RuneE == 0).
+//
+// ViewLen() int
+//
+// Returns the number of bytes from upcoming bytes buffer to display
+// from String, Log, and Print.
+//
+// String() string
+//
+// Fulfills the fmt.Stringer interface. Must return the Cursor as
+// a string, followed by a single space, followed by the quoted (%q)
+// number of bytes set by ViewLen as a preview of what is next in the
+// bytes buffer.
+//
+//    '\x00' 0-0 "some"
+//    's' 0-1 "ome"
+//    'e' 2-3 ""
+//
+// This output must be consistent to provide consistency across test
+// code for all PEGN rule Scanner implementations.
+//
+// Print()
+//
+// Prints the String() with the fmt package.
+//
+// Log()
+//
+// Logs the String() with the log package.
+//
+// TraceOn()
+// TraceOff()
+//
+// Activate (deactivate) a Log call for ever call to Scan.
+//
 type Scanner interface {
-
-	// Buffer being scanned (PEG/N assumes infinite memory unlike
-	// older single-byte lookahead designs). Bytes are most efficiently
-	// set this way. Use Buffer for convenience at a higher-level.
-
-	Bytes() []byte
-	SetBytes(b []byte)      // MUST replace bytes buffer and reset Rune*
-	Buffer(input any) error // string=path, []byte, io.Reader
-
-	// current internal cursor values
-
-	Rune() rune // copy of last rune scanned
-	RuneB() int // beginning of last rune scanned
-	RuneE() int // end of last rune scanned (beginning of next to scan)
-
-	// forces developer to consider implications of movement around within
-	// the bytes buffer without necessarily being able to update all the
-	// cursor propreties
-
+	Bytes() *[]byte
+	Buffer(input any) error
+	Rune() rune
+	RuneB() int
+	RuneE() int
 	Mark() Cursor
 	Goto(a Cursor)
-
-	// MUST scan the next UNICODE code point beginning with the current
-	// index position and if (and only if) successful capture it (Rune)
-	// and preserve the previous index position (P->LP). If unable to scan
-	// a rune for any reason, including being out of data to scan, MUST
-	// return false. This allows typical scanner loop idioms:
-	//
-	//     for s.Scan() {
-	//         ...
-	//     }
-
 	Scan() bool
-
-	// MUST return false if ErrStack.MaxErr has been reached.
-
-	//ErrStack
-
-	// MUST return true if there is nothing left to scan.
-	// MUST return true if nothing has yet been scanned.
-
 	Finished() bool
 	Beginning() bool
-
-	// MUST provide a way to print the current position and state using
-	// the fmt package (Print) and the package log (Log) to facilitate
-	// ScanFunc development and example-based testing
-
+	ViewLen() int
+	SetViewLen(a int)
+	TraceOn()
+	TraceOff()
 	Print()
 	Log()
-
-	// Buffering allows implementations of angle-bracket captures and
-	// rule-scoped variables.
-
+	//ErrStack
 	//Buffers
 }
 
@@ -202,15 +263,15 @@ type ErrStack interface {
 //
 // In order to maintain maximum compatibility for all dependencies, rule
 // implementations must never be removed or change their Ident,
-// Alias, or NodeType properties. Also, no two rules must ever have the
-// same Ident, Alias, or NodeType. The PEGN, Scan, and Parse
+// Alias, or Type properties. Also, no two rules must ever have the
+// same Ident, Alias, or Type. The PEGN, Scan, and Parse
 // implementations may change, however, provided the results are
 // consistent.
 //
 type Rule interface {
+	Type() int             // unique, associate a node to its parsing rule
 	Ident() string         // identifier from PEGN following conventions
 	Alias() string         // mostly for classes (all-lower) names
-	NodeType() int         // associate a node to its parsing rule
 	Description() string   // human PEGN with language detection
 	PEGN() string          // formal PEGN specification with captures
 	Scan(s Scanner) bool   // advance scanner if true, push errors if false
@@ -239,7 +300,7 @@ type Rule interface {
 // examine the state of the scanner itself (Finished, etc.).
 //
 type Node struct {
-	T int    // node type (linked to Rule.NodeType)
+	T int    // node type (linked to Rule.Type)
 	V string // value (leaf nodes only)
 	O *Node  // node over this node
 	U *Node  // first node under this node (child)
