@@ -32,15 +32,16 @@ import (
 // PEG scanning algorithms usually snap back to previous positions in
 // the buffer. Therefore, it is important that the last scanned rune
 // (Rune), pointer position (P), and last pointer position (LP) be
-// restored when snapping back. The Mark/Snap methods are required to
+// restored when snapping back. The Mark/Goto methods are required to
 // facilitate these operations consistently across implementations
 // (although they may other changes depending on other state such
 // implementations choose to add in addition to this).
 //
 type Cursor struct {
-	R rune // last rune scanned
-	B int  // beginning of last rune scanned
-	E int  // effective end of last rune scanned (beginning of next)
+	Buf *[]byte // pointer to actual bytes buffer
+	R   rune    // last rune scanned
+	B   int     // beginning of last rune scanned
+	E   int     // effective end of last rune scanned (beginning of next)
 }
 
 // String implements fmt.Stringer with the last rune scanned (R/Rune),
@@ -104,6 +105,13 @@ func (c Cursor) String() string {
 // Jumps to a specific position in the bytes buffer and sets the last
 // rune scanned as well.
 //
+// Peek(a string) bool
+//
+// Peek returns true if the passed string matches from current position
+// in the buffer (s.RuneB) forward. Returns false if the string
+// would go beyond the length of buffer (len(s.Buf)). Peek does not
+// advance the Scanner.
+//
 // Scan() bool
 //
 // Scans the next UNICODE code point (rune) beginning at position RuneE
@@ -128,10 +136,14 @@ func (c Cursor) String() string {
 // Returns true if no Scan has yet been called (identical to Rune ==
 // `\x00` or RuneB == 0 && RuneE == 0).
 //
+// SetViewLen(a int)
+//
+// Set the number of bytes from upcoming bytes buffer to display from
+// String, Log, and Print.
+//
 // ViewLen() int
 //
-// Returns the number of bytes from upcoming bytes buffer to display
-// from String, Log, and Print.
+// Returns previous SetViewLen
 //
 // String() string
 //
@@ -168,15 +180,16 @@ type Scanner interface {
 	RuneE() int
 	Mark() Cursor
 	Goto(a Cursor)
+	Peek(a string) bool
 	Scan() bool
 	Finished() bool
 	Beginning() bool
-	ViewLen() int
 	SetViewLen(a int)
-	TraceOn()
-	TraceOff()
+	ViewLen() int
 	Print()
 	Log()
+	TraceOn()
+	TraceOff()
 	//ErrStack
 	//Buffers
 }

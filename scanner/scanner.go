@@ -52,7 +52,7 @@ func (s *S) Bytes() *[]byte     { return &s.Buf }
 func (s *S) Rune() rune         { return s.R }
 func (s *S) RuneB() int         { return s.B }
 func (s *S) RuneE() int         { return s.E }
-func (s *S) Mark() pegn.Cursor  { return pegn.Cursor{s.R, s.B, s.E} }
+func (s *S) Mark() pegn.Cursor  { return pegn.Cursor{&s.Buf, s.R, s.B, s.E} }
 func (s *S) Goto(c pegn.Cursor) { s.R, s.B, s.E = c.R, c.B, c.E }
 func (s *S) ViewLen() int       { return s.viewlen }
 func (s *S) SetViewLen(a int)   { s.viewlen = a }
@@ -215,7 +215,7 @@ func (s S) String() string {
 		end = len(s.Buf)
 	}
 	return fmt.Sprintf("%v %q",
-		pegn.Cursor{s.R, s.B, s.E}, s.Buf[s.E:end])
+		pegn.Cursor{&s.Buf, s.R, s.B, s.E}, s.Buf[s.E:end])
 }
 
 // Print is shorthand for fmt.Println(s).
