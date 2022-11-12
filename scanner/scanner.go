@@ -12,7 +12,7 @@ import (
 	"text/template"
 	"unicode/utf8"
 
-	"github.com/rwxrob/pegn/cursor"
+	"github.com/rwxrob/pegn/curs"
 )
 
 // S (to avoid stuttering) implements a buffered data, non-linear,
@@ -22,11 +22,13 @@ type S struct {
 	R        rune               // last decoded/scanned rune, maybe >1byte
 	B        int                // index pointing beginning of R
 	E        int                // index pointing to end (after) R
-	Errors   []error            // stack of errors in order
 	Template *template.Template // for Report()
 	NewLine  []string           // []string{"\r\n","\n"} by default
 	viewlen  int                // length of bytes to show in preview
 	Trace    int                // non-zero activates tracing
+
+	errors []error
+	maxerr int
 }
 
 var ViewLenDefault = 10 // default length of preview window
@@ -38,7 +40,7 @@ func New(args ...any) *S {
 	s := new(S)
 	switch len(args) {
 	case 2:
-		if c, ok := args[1].(cursor.C); ok {
+		if c, ok := args[1].(curs.R); ok {
 			s.Goto(c)
 		}
 		fallthrough
@@ -48,19 +50,33 @@ func New(args ...any) *S {
 	return s
 }
 
+func (s *S) SetViewLen(a int) { s.viewlen = a }
+func (s *S) SetMaxErr(i int)  { s.maxerr = i }
 func (s *S) Bytes() *[]byte   { return &s.Buf }
 func (s *S) Rune() rune       { return s.R }
 func (s *S) RuneB() int       { return s.B }
 func (s *S) RuneE() int       { return s.E }
-func (s *S) Mark() cursor.C   { return cursor.C{&s.Buf, s.R, s.B, s.E} }
-func (s *S) Goto(c cursor.C)  { s.R, s.B, s.E = c.R, c.B, c.E }
+func (s *S) Mark() curs.R     { return curs.R{&s.Buf, s.R, s.B, s.E} }
+func (s *S) Goto(c curs.R)    { s.R, s.B, s.E = c.R, c.B, c.E }
 func (s *S) ViewLen() int     { return s.viewlen }
-func (s *S) SetViewLen(a int) { s.viewlen = a }
 func (s *S) TraceOff()        { s.Trace = 0 }
 func (s *S) TraceOn()         { s.Trace++ }
 
+func (s *S) Errors() *[]error { return &s.errors }
+func (s *S) ErrPush(e error)  { s.errors = append(s.errors, e) }
+
+func (s *S) ErrPop() error {
+	l := len(s.errors)
+	if l == 0 {
+		return nil
+	}
+	e := s.errors[l-1]
+	s.errors = s.errors[:l-1]
+	return e
+}
+
 // CopyEE returns copy (n,m] fulfilling pegn.Scanner interface.
-func (s *S) CopyEE(m cursor.C) string {
+func (s *S) CopyEE(m curs.R) string {
 	if m.B <= s.B {
 		return string(s.Buf[m.E:s.E])
 	}
@@ -68,7 +84,7 @@ func (s *S) CopyEE(m cursor.C) string {
 }
 
 // CopyBB returns copy [n,m] fulfilling pegn.Scanner interface.
-func (s *S) CopyBE(m cursor.C) string {
+func (s *S) CopyBE(m curs.R) string {
 	if m.B <= s.B {
 		return string(s.Buf[m.B:s.E])
 	}
@@ -76,7 +92,7 @@ func (s *S) CopyBE(m cursor.C) string {
 }
 
 // CopyBB returns copy [n,m) fulfilling pegn.Scanner interface.
-func (s *S) CopyBB(m cursor.C) string {
+func (s *S) CopyBB(m curs.R) string {
 	if m.B <= s.B {
 		return string(s.Buf[m.B:s.B])
 	}
@@ -84,7 +100,7 @@ func (s *S) CopyBB(m cursor.C) string {
 }
 
 // CopyEB returns copy (n,m) fulfilling pegn.Scanner interface.
-func (s *S) CopyEB(m cursor.C) string {
+func (s *S) CopyEB(m curs.R) string {
 	if m.B <= s.B {
 		return string(s.Buf[m.E:s.B])
 	}
@@ -113,6 +129,30 @@ func (s *S) Buffer(b any) error {
 	s.E = 0
 	return nil
 }
+
+// Expected is a shortcut for ErrPush for a new curs.Error at the
+// current position, and returning false (always). It makes shorter code
+// when writing pegn.ScanFuncs.
+func (s *S) Expected(t int) bool {
+	s.ErrPush(curs.Error{s.Mark(), t})
+	return false
+}
+
+// Revert is a shortcut for Expected + Goto.
+func (s *S) Revert(m curs.R, t int) bool {
+	s.Expected(t)
+	s.Goto(m)
+	return false
+}
+
+/*
+type ScannerErrors interface {
+	ErrPush(e error)             // push new error onto stack
+	ErrPop() error               // pop most recent error from stack
+	Expected(t int) bool         // ErrPush + return false
+	Revert(m curs.C, t int) bool // Goto(m) + Expected(t)
+}
+*/
 
 const DefaultTemplate = `
 {{- if .Errors -}}
@@ -247,7 +287,7 @@ func (s S) String() string {
 		end = len(s.Buf)
 	}
 	return fmt.Sprintf("%v %q",
-		cursor.C{&s.Buf, s.R, s.B, s.E}, s.Buf[s.E:end])
+		curs.R{&s.Buf, s.R, s.B, s.E}, s.Buf[s.E:end])
 }
 
 // Print is shorthand for fmt.Println(s).

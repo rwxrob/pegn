@@ -1,9 +1,48 @@
 /*
 
-Package scan contains a large library of scan functions for use by those
-developing PEG-centric recursive descent parsers.
+Package pegn provides tools for working with grammars written in Parsing
+Expression Grammar Notation (Rob Muhlestein's combination of ABNF with
+Bryan Ford's original PEG design as found in the examples in his paper).
 
-Simple and Adequately Performant
+Tools
+
+	  * scan/     - scan functions:  func(s Scanner) bool
+		* parse/    - parse functions: func(s Scanner) *Node
+		* is/       - class functions: func(a rune) bool
+    * tk/       - token constants
+    * types.go  - type constants
+		* docs/     - multi-lingual rule documentation
+    * scanner/  - pegn.Scanner implementation (DefaultScanner)
+    * curs/     - curs.R struct for position within bytes buffer
+    * cmd.go    - Bonzai stateful command tree composition
+    * cmd/pegn  - helper utility with code generation
+
+Types of Rules
+
+A PEGN rule is what appears on the right of the arrow (<-). There are
+two subtypes of a PEGN rule: class rules and a token rules. A class is
+a set of runes. A token is a specific rune or string constant.
+
+All rules must have a unique integer constant type.
+
+PEGN reserved integer types (types.go) are guaranteed to never change
+and always be negative. This frees grammar developers to use positive
+integers. On day, the greater PEGN community may wish to organize range
+reservations for different common grammar rules to maintain grammar and
+AST interoperability.
+
+No guarantee is made about what numeric range a rule, class, or token
+integer will be only that any specific type integer will never be reused
+for a different type. Use of such value ranges is strongly discouraged
+over creation of proper range maps (as is used in the unicode package).
+
+The integer 0 is reserved as Untyped.
+
+Every PEGN rule must have a ScanFunc (scan) and a ParseFunc (parse).
+Class rules must also have a ClassFunc (is). Token rules must also have
+a token constant (tk).
+
+Balanced Simplicity and Performance
 
 A balance between performance and simplicity has been the primary goal
 with this package. The thought is that the time saved quickly writing
@@ -12,43 +51,36 @@ later to convert these into a more performant forms having done the hard
 initial work of figuring out the grammar notation and parsing algorithm
 required.
 
-The pegn.Scanner contains the last rune scanned and both it's beginning
-and end index in the bytes buffer. Using a cursor in this way adds
-several steps of indirection beyond the function calls themselves, but
-this makes for scanners that are very easy to quickly write, trace, test,
-and maintain.
-
 */
 package pegn
 
 import (
-	"encoding/json"
-	"fmt"
+	"github.com/rwxrob/pegn/curs"
+	"github.com/rwxrob/pegn/gr"
+	"github.com/rwxrob/pegn/rule"
+	"github.com/rwxrob/pegn/scanner"
 )
 
-// Cursor points a specific location in the bytes buffer. The order of
-// fields is guaranteed to never change.
-//
-// PEG scanning algorithms usually snap back to previous positions in
-// the buffer. Therefore, it is important that the last scanned rune
-// (Rune), pointer position (P), and last pointer position (LP) be
-// restored when snapping back. The Mark/Goto methods are required to
-// facilitate these operations consistently across implementations
-// (although they may other changes depending on other state such
-// implementations choose to add in addition to this).
-//
-type Cursor struct {
-	Buf *[]byte // pointer to actual bytes buffer
-	R   rune    // last rune scanned
-	B   int     // beginning of last rune scanned
-	E   int     // effective end of last rune scanned (beginning of next)
-}
+var DefaultScanner = scanner.New()
 
-// String implements fmt.Stringer with the last rune scanned (R/Rune),
-// and the beginning and ending byte positions joined with
-// a dash.
-func (c Cursor) String() string {
-	return fmt.Sprintf("%q %v-%v", c.R, c.B, c.E)
+// ScanFunc uses the Scanner to scan for rule returning false and
+// pushing at least one error to the Scanner.ErrStack. When working with
+// PEGN grammars (or derivatives) the error must be of pegn.Error type.
+type ScanFunc func(s Scanner) bool
+
+// ParseFunc depends on one or more ScanFuncs to create a node pointer
+// to return if successful pushing at least one error to the
+// Scanner.ErrStack. When working with PEGN grammars (or derivatives)
+// the error must be of pegn.Error type.
+type ParseFunc func(s Scanner) bool
+
+type Scanner interface {
+	ScannerCore
+	ScannerState
+	ScannerCursor
+	ScannerRangeCopy
+	ScannerObservability
+	ScannerErrors
 }
 
 // A Scanner implements a buffered rune scanner and must employ design
@@ -84,16 +116,10 @@ func (c Cursor) String() string {
 //         ...
 //     }
 //
-type Scanner interface {
+type ScannerCore interface {
 	Bytes() *[]byte
 	Buffer(input any) error
 	Scan() bool
-
-	ScannerState
-	ScannerCursor
-	ScannerRangeCopy
-	ScannerObservability
-	//	ErrStack
 }
 
 // The ScannerState interface provides convenience methods for writing
@@ -142,20 +168,20 @@ type ScannerState interface {
 // rune scanned (Rune) and the beginning of the next rune to scan on
 // next call to Scan.
 //
-// Mark() Cursor
+// Mark() curs.R
 //
-// Mark returns a Cursor struct pointing to the last Rune, and it's
+// Mark returns a cursor pointing to the last Rune, and it's
 // location. Pass this to Goto to jump to another position in the bytes
 // buffer easily.
 //
-// Goto(a Cursor)
+// Goto(a curs.R)
 //
 // Jumps to a specific position in the bytes buffer and sets the last
 // rune scanned as well.
 //
 type ScannerCursor interface {
-	Mark() Cursor
-	Goto(a Cursor)
+	Mark() curs.R
+	Goto(a curs.R)
 	Rune() rune
 	RuneB() int
 	RuneE() int
@@ -230,149 +256,55 @@ type ScannerObservability interface {
 //
 type ScannerRangeCopy interface {
 	ScannerCursor
-	CopyEE(to Cursor) string
-	CopyBE(to Cursor) string
-	CopyBB(to Cursor) string
-	CopyEB(to Cursor) string
+	CopyEE(to curs.R) string
+	CopyBE(to curs.R) string
+	CopyBB(to curs.R) string
+	CopyEB(to curs.R) string
 }
 
-// Errors allow Scanner to keep track of errors and decide how many to
-// allow before stopping (whatever that means for the struct
-// implementing ErrStack). SetMaxErr is called by the highest level
-// caller in order to trigger a panic once that many errors have been
-// pushed onto the stack. Generally, implementations of ErrStack will
-// never panic unless MaxErr is reached and will expect and defer such
-// panics by design.
-type ErrStack interface {
-	SetMaxErr(i int)  // sets max at which scanner will panic
-	Errors() *[]error // returns pointer to internal errors stack
-	ErrPush(e error)  // push new error onto stack
-	ErrPop() error    // pop most recent error from stack
-	Error() string    // output all errors as text (detects language)
+// ScannerErrors allow Scanner to keep track of errors and decide how
+// many to allow before stopping. SetMaxErr is called by the highest
+// level caller in order to trigger a panic once that many errors have
+// been pushed onto the stack. Generally, implementations should not
+// panic unless max err is reached
+//
+// Even though any error type is used for these methods, the errors
+// passed and produced should be instances of Error with both
+// a type and cursor set when implementing scanners for use with this
+// PEGN package or others. This is also why Expected takes a simple
+// integer instead of a pegn.Type.
+//
+type ScannerErrors interface {
+	SetMaxErr(i int)             // sets max at which scanner will panic
+	Errors() *[]error            // returns pointer to internal errors stack
+	ErrPush(e error)             // push new error onto stack
+	ErrPop() error               // pop most recent error from stack
+	Expected(t int) bool         // ErrPush + return false
+	Revert(m curs.C, t int) bool // Goto(m) + Expected(t)
 }
 
-// Rule contains both specific and user-friendly instruction as to
-// what it will scan and optionally parse and why it might fail
-// providing the most detail possible to the end user. Each Rule
-// handles a PEGN grammar rule definition. Rules are combined and
-// aggregated to create larger grammars.
-//
-// Implementations must define Scan and Parse. Scan is for validation
-// while advancing the scanner. Parse productively produces a single
-// node either with a value or the first node under it. Parse must
-// return a node with either a value (V) or the first node under it (U),
-// never anything else. When parsing higher-level content the
-// first node under (U) will obviously have more of its fields assigned.
-// Note that an empty node value (V) is still a value and fulfills the
-// requirement for rules that may be simple validations of state at the
-// point in the scan. In such cases, the node type (T) is the only
-// useful field set. As such, all nodes returned by a Parse function must
-// assign a unique type integer to the node corresponding with that
-// specific rule even if the rule is similar to another.
-//
-// Even if Scan doesn't advance the scanner or parse any runes (i.e.
-// "rhetorical" assertions, look aheads, etc.) a Scan and Parse method
-// must always be defined.
-//
-// The Ident would normally be the identifier for a given definition
-// (on the left side of the PEGN arrow). Idents must not
-// conflict with other identifiers within a given grammar scope, but
-// specifying the method of grouping into a grammar is left up to the
-// specification creation and developer to decide. It is, however,
-// strongly recommended to define all rules for a given grammar into the
-// same package so that naming conflicts can easily be identified.
-//
-// When picking a Ident use the same PEGN rule naming conventions:
-//
-//     * CAPS for tokens
-//     * lower for classes (with MixedCase Alias for convenience)
-//     * MixedCase for everything else
-//
-// Sometimes two rules might exist for parsing the same content in
-// different ways. For example, a Title rule could return the entire
-// text of a title as its value, while a TitleWords rule could return
-// a node with that exact same text split into individual Word nodes
-// added under it.
-//
-// When selecting a name for the actual struct instance implementation
-// a Rule consider the following conventions:
-//
-//     * Use Alias for classes (ws -> pegn.WhiteSpace)
-//     * CAPS for tokens (SP -> pegn.SP)
-//     * Mixed case for everything else (TitleWords -> pegn.TitleWords)
-//
-// For international language support Description should detect the host
-// language of the system and/or user. Other fields are not language
-// specific.
-//
-// Deprecation
-//
-// In order to maintain maximum compatibility for all dependencies, rule
-// implementations must never be removed or change their Ident,
-// Alias, or Type properties. Also, no two rules must ever have the
-// same Ident, Alias, or Type. The PEGN, Scan, and Parse
-// implementations may change, however, provided the results are
-// consistent.
-//
-type Rule interface {
-	Type() int             // unique, associate a node to its parsing rule
-	Ident() string         // identifier from PEGN following conventions
-	Alias() string         // mostly for classes (all-lower) names
-	Description() string   // human PEGN with language detection
-	PEGN() string          // formal PEGN specification with captures
-	Scan(s Scanner) bool   // advance scanner if true, push errors if false
-	Parse(s Scanner) *Node // advance and return parsed content
+// Grammar represents all the rules of a PEGN-compatible specification.
+type Grammar interface {
+	Scan(in any, s Scanner) (bool, []error)
+	Parse(in any, s Scanner) (*Node, []error)
+	Rules() []rule.Rule
 }
 
-// Node is a typical node in a rooted node tree as required for any
-// abstract syntax tree. Note that PEGN does not allow node attributes
-// of any kind and that Nodes with Nodes under them must not also have
-// a value (V).
-//
-// Minimal Design for Embedding
-//
-// The struct design is deliberately minimal with only Nodes, and String
-// marshalling methods to ensure the least amount of conflict with
-// potential embedded dependencies, which are encouraged to provide
-// more involved handling of AST and other node trees when needed. Only
-// unmarshaling methods are being considered at the moment (JSON, etc.).
-//
-// Unique Rule Type Association
-//
-// The Type integer often corresponds to the name (identifier) of the
-// PEGN rule used to parse the Node, but not necessarily. For example,
-// some rules are simply assertions that do not capture nodes. Others
-// are not significant at all. Some don't even look at the content but
-// examine the state of the scanner itself (Finished, etc.).
-//
-type Node struct {
-	T int    // node type (linked to Rule.Type)
-	V string // value (leaf nodes only)
-	O *Node  // node over this node
-	U *Node  // first node under this node (child)
-	R *Node  // node to immediate right
+// Scan uses the DefaultScanner to load whatever input the Scanner
+// implementation accepts to its Buffer method and then parses the PEGN
+// spec string into a Grammar and delegates Scan to it.
+func Scan(in any, spec string) (bool, []error) { return gr.PEGN.Scan(in, spec) }
+
+// Parse does the same thing as Scan but produces a tree of parsed nodes
+// instead of just validating.
+func Parse(in any, spec string) (*Node, []error) { return gr.PEGN.Parse(in, spec) }
+
+func ScanClass(s Scanner, f ClassFunc) bool {
+	// TODO
+	return false
 }
 
-// Nodes walks from the first node under (U) to the last returning a slice.
-func (n Node) Nodes() []*Node {
-	if n.U == nil {
-		return nil
-	}
-	var nodes []*Node
-	for cur := n.U; cur.R != nil; cur = cur.R {
-		nodes = append(nodes, cur)
-	}
-	return nodes
-}
-
-// String fulfills the fmt.Stringer interface as JSON omitting any empty
-// value (V) or slice of nodes under (N).
-func (n Node) String() string {
-	s := struct {
-		T int
-		V string  `json:",omitempty"`
-		N []*Node `json:",omitempty"`
-	}{n.T, n.V, n.Nodes()}
-	byt, _ := json.Marshal(s)
-	return string(byt)
+func ParseClass(s Scanner, f ClassFunc) *Node {
+	// TODO
+	return nil
 }

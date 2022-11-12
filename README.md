@@ -6,6 +6,10 @@ See the [pegn.go](pegn.go) file for documentation of this Go package.
 
 ## Design Considerations
 
+* **Use `C_` prefix for classes to preserve identifiers**
+
+The use of aliases just wasn't working. This makes them immediately identifiable.
+
 * **Individual scan, parse, and is (class) function files**
 
 By keeping the function types of PEGN in their own files it becomes trivial to create code generators by simply copying the files needed into an isolated package directory and adjusting the package line.

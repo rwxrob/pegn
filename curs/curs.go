@@ -11,14 +11,14 @@ facilitate these operations consistently across pegn.Scanner
 implementations.
 
 */
-package cursor
+package curs
 
 import "fmt"
 
-// C contains a cursor pointer to a bytes slice buffer and information
+// R contains a cursor pointer to a bytes slice buffer and information
 // pointing to a specific location in the bytes buffer. The order of
 // fields is guaranteed to never change.
-type C struct {
+type R struct {
 	Buf *[]byte // pointer to actual bytes buffer
 	R   rune    // last rune scanned
 	B   int     // beginning of last rune scanned
@@ -28,6 +28,24 @@ type C struct {
 // String implements fmt.Stringer with the last rune scanned (R/Rune),
 // and the beginning and ending byte positions joined with
 // a dash.
-func (c C) String() string {
+func (c R) String() string {
 	return fmt.Sprintf("%q %v-%v", c.R, c.B, c.E)
+}
+
+// Error wraps the type (T) and current scanner position (C)
+// such that it can be located and displayed with help information by
+// looking up those things from other sources when displayed to the end
+// user. The position of fields is guaranteed never to change allowing
+// for short-form instantiation (ex: pegn.Error{1,s.Mark()}). See
+// ScannerErrors interface for more.
+//
+type Error struct {
+	T int
+	C R
+}
+
+var DefaultErrorFmt = `expected %v at %v`
+
+func (e Error) Error() string {
+	return fmt.Sprintf(DefaultErrorFmt, rules[e.T].ID, C)
 }
