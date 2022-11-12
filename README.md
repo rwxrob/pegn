@@ -6,6 +6,20 @@ See the [pegn.go](pegn.go) file for documentation of this Go package.
 
 ## Design Considerations
 
+* **Individual scan, parse, and is (class) function files**
+
+By keeping the function types of PEGN in their own files it becomes trivial to create code generators by simply copying the files needed into an isolated package directory and adjusting the package line.
+
+* **Simplest rune pegn.Scanner interface**
+
+The temptation to add more methods to the pegn.Scanner interface has been constant, and overcome. The driving design principle for it is that it could be used entirely without any other dependency on PEGN for *any* rune scanning. This is why ScannerErrors interface methods use simple error and not ScanError (even though ScanError is strongly recommended with implementing pegn.Scanners).
+
+* **Decouple meta-data association**
+
+For a time, associating the PEGN notation, aliases, and human-friendly descriptions of each pegn.Type was done by forcing them all into a pegn.Rule interface implementation, the idea being that such information would travel with the thing doing the scanning and parsing.
+
+However, it became clear that only a reserved pegn.Type is needed in order to accomplish the same thing allowing simple, decoupled ScanFunc and ParseFunc instances rather than a full struct implementation. This allows the help and other documentation to be contained separately and greatly facilitated code generation. (It's worth noting that this was the original 2018 design as well.)
+
 * **All scanner functions advance the scanner themselves**
 
 Since it is not always clear how much of the bytes buffer will be
