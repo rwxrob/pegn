@@ -12,7 +12,7 @@ import (
 	"text/template"
 	"unicode/utf8"
 
-	"github.com/rwxrob/pegn"
+	"github.com/rwxrob/pegn/cursor"
 )
 
 // S (to avoid stuttering) implements a buffered data, non-linear,
@@ -29,8 +29,7 @@ type S struct {
 	Trace    int                // non-zero activates tracing
 }
 
-var _ pegn.Scanner = (*S)(nil) // check "implements pegn.Scanner"
-var ViewLenDefault = 10        // default length of preview window
+var ViewLenDefault = 10 // default length of preview window
 
 // New is a high-level scanner constructor and initializer that takes
 // a single optional argument containing any valid Buffer() argument.
@@ -39,7 +38,7 @@ func New(args ...any) *S {
 	s := new(S)
 	switch len(args) {
 	case 2:
-		if c, ok := args[1].(pegn.Cursor); ok {
+		if c, ok := args[1].(cursor.C); ok {
 			s.Goto(c)
 		}
 		fallthrough
@@ -49,19 +48,19 @@ func New(args ...any) *S {
 	return s
 }
 
-func (s *S) Bytes() *[]byte     { return &s.Buf }
-func (s *S) Rune() rune         { return s.R }
-func (s *S) RuneB() int         { return s.B }
-func (s *S) RuneE() int         { return s.E }
-func (s *S) Mark() pegn.Cursor  { return pegn.Cursor{&s.Buf, s.R, s.B, s.E} }
-func (s *S) Goto(c pegn.Cursor) { s.R, s.B, s.E = c.R, c.B, c.E }
-func (s *S) ViewLen() int       { return s.viewlen }
-func (s *S) SetViewLen(a int)   { s.viewlen = a }
-func (s *S) TraceOff()          { s.Trace = 0 }
-func (s *S) TraceOn()           { s.Trace++ }
+func (s *S) Bytes() *[]byte   { return &s.Buf }
+func (s *S) Rune() rune       { return s.R }
+func (s *S) RuneB() int       { return s.B }
+func (s *S) RuneE() int       { return s.E }
+func (s *S) Mark() cursor.C   { return cursor.C{&s.Buf, s.R, s.B, s.E} }
+func (s *S) Goto(c cursor.C)  { s.R, s.B, s.E = c.R, c.B, c.E }
+func (s *S) ViewLen() int     { return s.viewlen }
+func (s *S) SetViewLen(a int) { s.viewlen = a }
+func (s *S) TraceOff()        { s.Trace = 0 }
+func (s *S) TraceOn()         { s.Trace++ }
 
 // CopyEE returns copy (n,m] fulfilling pegn.Scanner interface.
-func (s *S) CopyEE(m pegn.Cursor) string {
+func (s *S) CopyEE(m cursor.C) string {
 	if m.B <= s.B {
 		return string(s.Buf[m.E:s.E])
 	}
@@ -69,7 +68,7 @@ func (s *S) CopyEE(m pegn.Cursor) string {
 }
 
 // CopyBB returns copy [n,m] fulfilling pegn.Scanner interface.
-func (s *S) CopyBE(m pegn.Cursor) string {
+func (s *S) CopyBE(m cursor.C) string {
 	if m.B <= s.B {
 		return string(s.Buf[m.B:s.E])
 	}
@@ -77,7 +76,7 @@ func (s *S) CopyBE(m pegn.Cursor) string {
 }
 
 // CopyBB returns copy [n,m) fulfilling pegn.Scanner interface.
-func (s *S) CopyBB(m pegn.Cursor) string {
+func (s *S) CopyBB(m cursor.C) string {
 	if m.B <= s.B {
 		return string(s.Buf[m.B:s.B])
 	}
@@ -85,7 +84,7 @@ func (s *S) CopyBB(m pegn.Cursor) string {
 }
 
 // CopyEB returns copy (n,m) fulfilling pegn.Scanner interface.
-func (s *S) CopyEB(m pegn.Cursor) string {
+func (s *S) CopyEB(m cursor.C) string {
 	if m.B <= s.B {
 		return string(s.Buf[m.E:s.B])
 	}
@@ -248,7 +247,7 @@ func (s S) String() string {
 		end = len(s.Buf)
 	}
 	return fmt.Sprintf("%v %q",
-		pegn.Cursor{&s.Buf, s.R, s.B, s.E}, s.Buf[s.E:end])
+		cursor.C{&s.Buf, s.R, s.B, s.E}, s.Buf[s.E:end])
 }
 
 // Print is shorthand for fmt.Println(s).
