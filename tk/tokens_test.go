@@ -9,5 +9,5 @@ import (
 func ExampleSP() {
 	fmt.Println(tk.LBRAKT)
 	// Output:
-	// blah
+	// 91
 }

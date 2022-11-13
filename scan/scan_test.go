@@ -7,7 +7,7 @@ import (
 	"github.com/rwxrob/pegn/scanner"
 )
 
-func ExampleField_scan() {
+func ExampleField() {
 
 	s := scanner.New(`fields don't have so-called spaces`)
 
@@ -24,5 +24,25 @@ func ExampleField_scan() {
 	// ' ' 6-7 "don't have"
 	// true
 	// 't' 11-12 " have so-c"
+
+}
+
+func ExampleC_ws_scan() {
+
+	s := scanner.New(`1 `)
+
+	fmt.Println(scan.C_ws(s))
+	s.Print()
+	s.Scan()
+	s.Print()
+	fmt.Println(scan.C_ws(s))
+	s.Print()
+
+	// Output:
+	// false
+	// '\x00' 0-0 "1 "
+	// '1' 0-1 " "
+	// true
+	// ' ' 1-2 ""
 
 }

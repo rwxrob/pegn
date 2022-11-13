@@ -1,6 +1,8 @@
-package T
+package id
 
 // NEVER ADD ANYTHING TO THIS EXCEPT FOR AT THE END!!!
+// (Keep in sync with ../names.go)
+
 const (
 	Untyped int = -iota
 	TAB

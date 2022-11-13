@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/rwxrob/pegn/curs"
+	"github.com/rwxrob/pegn/rule"
 )
 
 // S (to avoid stuttering) implements a buffered data, non-linear,
@@ -130,17 +131,17 @@ func (s *S) Buffer(b any) error {
 	return nil
 }
 
-// Expected is a shortcut for ErrPush for a new curs.Error at the
+// Expected is a shortcut for ErrPush for a new rule.Error at the
 // current position, and returning false (always). It makes shorter code
 // when writing pegn.ScanFuncs.
-func (s *S) Expected(t int) bool {
-	s.ErrPush(curs.Error{s.Mark(), t})
+func (s *S) Expected(ruleid int) bool {
+	s.ErrPush(rule.Error{ruleid, s.Mark()})
 	return false
 }
 
 // Revert is a shortcut for Expected + Goto.
-func (s *S) Revert(m curs.R, t int) bool {
-	s.Expected(t)
+func (s *S) Revert(m curs.R, ruleid int) bool {
+	s.Expected(ruleid)
 	s.Goto(m)
 	return false
 }

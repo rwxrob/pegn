@@ -1,33 +1,18 @@
 package scan
 
-import "github.com/rwxrob/pegn/curs"
+import (
+	"github.com/rwxrob/pegn"
+	"github.com/rwxrob/pegn/is"
+	"github.com/rwxrob/pegn/rule/id"
+)
 
-// Recreation of pegn.Scanner interface.
-type Scanner interface {
-	Bytes() *[]byte
-	Buffer(input any) error
-	Scan() bool
-	Peek(a string) bool
-	Finished() bool
-	Beginning() bool
-	Mark() curs.R
-	Goto(a curs.R)
-	Rune() rune
-	RuneB() int
-	RuneE() int
-	SetViewLen(a int)
-	ViewLen() int
-	Print()
-	Log()
-	TraceOn()
-	TraceOff()
-	CopyEE(to curs.R) string
-	CopyBE(to curs.R) string
-	CopyBB(to curs.R) string
-	CopyEB(to curs.R) string
-	SetMaxErr(i int)
-	Errors() *[]error
-	ErrPush(e error)
-	ErrPop() error
-	Expected(t int) bool
+func C_ws(s pegn.Scanner) bool {
+	m := s.Mark()
+	if !s.Scan() {
+		return false
+	}
+	if is.C_ws(s.Rune()) {
+		return true
+	}
+	return s.Revert(m, id.C_ws)
 }

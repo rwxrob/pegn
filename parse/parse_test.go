@@ -3,26 +3,26 @@ package parse_test
 import (
 	"fmt"
 
-	"github.com/rwxrob/pegn"
+	"github.com/rwxrob/pegn/parse"
 	"github.com/rwxrob/pegn/scanner"
 )
 
-func ExampleWhiteSpace_parse() {
+func ExampleC_ws_parse() {
 
 	s := scanner.New(`1 `)
 
-	fmt.Println(pegn.WhiteSpace.Parse(s))
+	fmt.Println(parse.C_ws(s))
 	s.Print()
 	s.Scan()
 	s.Print()
-	fmt.Println(pegn.WhiteSpace.Parse(s))
+	fmt.Println(parse.C_ws(s))
 	s.Print()
 
 	// Output:
 	// <nil>
 	// '\x00' 0-0 "1 "
 	// '1' 0-1 " "
-	// {"T":1,"V":" "}
+	// {"t":-77,"v":" "}
 	// ' ' 1-2 ""
 
 }
