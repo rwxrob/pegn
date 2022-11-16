@@ -20,6 +20,7 @@ This repo also contains some "batteries included" tools to help work with PEGN
 * `types.go`  - type constants
 * `docs/`     - multi-lingual rule documentation
 * `scanner/`  - pegn.Scanner implementation (DefaultScanner)
+* `qstack/` - queue and stack data structure combined
 * `curs/`     - curs.R struct for position within bytes buffer
 * `cmd.go`    - Bonzai stateful command tree composition
 * `cmd/pegn`  - helper utility with code generation
