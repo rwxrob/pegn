@@ -1,8 +1,28 @@
 # PEGN Scanner, Parser, and AST in Go
 
-**🤙Hey there, want to join the PEGN party? 🎉 Now accepting PRs for new Rule implementations. Have a question about how? Open an issue with your question and we'll help you until we can write a contributors guide. Thanks!**
+🚧 Still a long way from 2023-01 version of `pegn` package to accompany the next release of the [PEGN specification](https://github.com/rwxrob/pegn-spec).
 
 See the [pegn.go](pegn.go) file for documentation of this Go package.
+
+## More than just a grammar spec
+
+This repo primarily contains the specification of the PEGN meta language with all the expected parts of a package used to handle a grammar (which some may generate directly from a PEGN file):
+
+* `rule` - rule definitions and meta data
+* `rule/id` - rule unique identifiers (neg int for all PEGN)
+* `scan` - scan functions (for all rules)
+* `parse` - parse functions (that usually call scan functions)
+* `tk` - tokens (rune and string constants)
+* `is` - class functions (called from scan functions)
+
+This repo also contains some "batteries included" tools to help work with PEGN
+
+* `types.go`  - type constants
+* `docs/`     - multi-lingual rule documentation
+* `scanner/`  - pegn.Scanner implementation (DefaultScanner)
+* `curs/`     - curs.R struct for position within bytes buffer
+* `cmd.go`    - Bonzai stateful command tree composition
+* `cmd/pegn`  - helper utility with code generation
 
 ## Design Considerations
 

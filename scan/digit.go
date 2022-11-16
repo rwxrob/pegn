@@ -6,14 +6,13 @@ import (
 	"github.com/rwxrob/pegn/rule/id"
 )
 
-func Field(s pegn.Scanner) bool {
+func C_digit(s pegn.Scanner) bool {
 	m := s.Mark()
-	var c int
-	for !s.Peek(" ") && s.Scan() && is.C_uprint(s.Rune()) {
-		c++
+	if !s.Scan() {
+		return false
 	}
-	if c > 0 {
+	if is.C_digit(s.Rune()) {
 		return true
 	}
-	return s.Revert(m, id.Field)
+	return s.Revert(m, id.C_digit)
 }
