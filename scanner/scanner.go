@@ -12,8 +12,8 @@ import (
 	"text/template"
 	"unicode/utf8"
 
+	"github.com/rwxrob/pegn"
 	"github.com/rwxrob/pegn/curs"
-	"github.com/rwxrob/pegn/rule"
 )
 
 // S (to avoid stuttering) implements a buffered data, non-linear,
@@ -135,7 +135,7 @@ func (s *S) Buffer(b any) error {
 // current position, and returning false (always). It makes shorter code
 // when writing pegn.ScanFuncs.
 func (s *S) Expected(ruleid int) bool {
-	s.ErrPush(rule.Error{ruleid, s.Mark()})
+	s.ErrPush(pegn.Error{ruleid, s.Mark()})
 	return false
 }
 
