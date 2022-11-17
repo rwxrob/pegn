@@ -1,0 +1,110 @@
+# PEGN pegn.dev/spec/2023-01/pegn.pegn
+# Copyright 2023 Robert S Muhlestein (rob@rwx.gg)
+# SPDX-License-Identifier: Apache-2
+# Include pegn.dev/spec/2023-01/classes.pegn
+# Include pegn.dev/spec/2023-01/tokens.pegn
+
+Spec       <-- Meta? Rules
+Meta       <-- '# ' Ident Home LF Copyright? License? Include*
+Rules      <-- (BlankLine / Comment / TokenDef / ClassDef / RuleDef)+
+Ident      <-- upper{2,12}
+Home       <-- Path
+Path       <-- (!ws rune)+
+Copyright  <-- '# ' < 'Copyright ' rune+ > LF
+License    <-- '# SPDX-License-Identifier: ' < SPDXID > LF
+Include    <-- '# Include ' Path LF
+Comment    <-- '# ' < (!LF rune)+ >
+
+
+
+# ----------------------------- secondary ----------------------------
+
+Name        <- RuleName / ClassName / TokenName
+
+RuleDef  <- RuleName
+Class <-- ClassName SP+ '<-' SP+ ClassExpr
+Token <-- TokenName SP+ '<-' SP+ 
+               TokenVal (Spacing TokenVal)*
+               ComEndLine
+
+Comment    <-- (!EndLine unipoint)+
+
+
+# lower-case of identifier must be unique within grammar
+Name        <- RuleName / ClassName / TokenName
+
+TokenVal    <- Unicode / Binary / Hexadec / Octal / SQ String SQ
+
+MajorVer   <-- digit+
+MinorVer   <-- digit+
+PatchVer   <-- digit+
+PreVer     <-- (word / DASH)+ ('.' (word / DASH)+)*
+
+RuleId    <-- (upper lower+)+
+ClassId    <-- ResClassId / lower (lower / UNDER lower)+
+TokenId    <-- ResTokenId / upper (upper / UNDER upper)+
+
+Expression <-- Sequence (Spacing '/' SP+ Sequence)*
+ClassExpr  <-- Simple (Spacing '/' SP+ Simple)*
+
+Simple      <- Unicode / Binary / Hexadec / Octal 
+             / ClassId / TokenId / Range / SQ String SQ
+
+Spacing     <- ComEndLine? SP+
+
+Sequence   <-- Rule (Spacing Rule)*
+Rule        <- PosLook / NegLook / Plain
+Plain      <-- Primary Quant?
+PosLook    <-- '&' Primary Quant?
+NegLook    <-- '!' Primary Quant?
+Primary     <- Simple / CheckId / '(' Expression ')'
+
+Quant       <- Optional / MinZero / MinOne / MinMax / Amount
+Optional   <-- '?'
+MinZero    <-- '*'
+MinOne     <-- '+'
+MinMax     <-- '{' Min ',' Max? '}'
+Min        <-- digit+
+Max        <-- digit+
+Amount      <- '{' Count '}'
+Count      <-- digit+
+
+Range       <- AlphaRange / IntRange / UniRange
+             / BinRange / HexRange / OctRange
+
+UniRange   <-- '[' Unicode '-' Unicode ']'  # [u0000-u10FFFF]
+AlphaRange <-- '[' Letter '-' Letter ']'    # [a-m] [A-Z]
+IntRange   <-- '[' Integer '-' Integer ']'  # [0-108] [0-9]
+BinRange   <-- '[' Binary '-' Binary ']'    # [b101-b1111111110101010]
+HexRange   <-- '[' Hexadec '-' Hexadec ']'  # [x20-x2F] [xFFFFF - x1FFFFF]
+OctRange   <-- '[' Octal '-' Octal ']'      # [o20-o37]
+
+Field      <-- uprint+
+
+String     <-- quotable+
+Letter     <-- alpha
+Unicode    <-- 'u' ('10' uphex{4} / uphex{4,5})
+Integer    <-- digit+
+Binary     <-- 'b' bindig+  # b1 == b00000001 (0 pad to closest byte)
+Hexadec    <-- 'x' uphex+
+Octal      <-- 'o' octdig+
+
+EndPara    <-- ws* (!. / EndLine !. / EndLine{2})
+
+ResClassId <-- 'alphanum' / 'alpha' / 'any' / 'bindig' / 'control' 
+             / 'digit' / 'hexdig' / 'lowerhex' / 'lower' / 'octdig' 
+             / 'punct' / 'quotable' / 'sign' / 'uphex' / 'upper' 
+             / 'visible' / 'ws' / 'alnum' / 'ascii' / 'blank' / 'cntrl' 
+             / 'graph' / 'print' / 'space' / 'word' / 'xdigit' / 'unipoint'
+
+ResTokenId <-- 'TAB' / 'CRLF' / 'CR' / 'LFAT' / 'SP' / 'VT' / 'FF' / 'NOT'
+             / 'BANG' / 'DQ' / 'HASH' / 'DOLLAR' / 'PERCENT' / 'AND' 
+             / 'SQ' / 'LPAREN' / 'RPAREN' / 'STAR' / 'PLUS' / 'COMMA'
+             / 'DASH' / 'MINUS' / 'DOT' / 'SLASH' / 'COLON' / 'SEMI' / 'LT'
+             / 'EQ' / 'GT' / 'QUERY' / 'QUESTION' / 'AT' / 'LBRAKT'
+             / 'BKSLASH' / 'RBRAKT' / 'CARET' / 'UNDER' / 'BKTICK' 
+             / 'LCURLY' / 'LBRACE' / 'BAR' / 'PIPE' / 'RCURLY' 
+             / 'RBRACE' / 'TILDE' / 'UNKNOWN' / 'REPLACE' / 'MAXRUNE' 
+             / 'MAXASCII' / 'MAXLATIN' / 'LARROWF' / 'RARROWF' / 'LLARROW'
+             / 'RLARROW' / 'LARROW' / 'LF' / 'RARROW' / 'RFAT' 
+             / 'WALRUS' / 'ENDOFDATA'

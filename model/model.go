@@ -5,6 +5,14 @@ Package model provides the data model and schema files associated with the PEGN 
 */
 package model
 
+import _ "embed"
+
+//go:embed pegn.yaml
+var YAML string
+
+//go:embed pegn.pegn
+var PEGN string
+
 // LangMap is a map that contains strings associated with a specific
 // language identifier.
 type LangMap map[string]string
