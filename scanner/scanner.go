@@ -65,6 +65,7 @@ func (s *S) TraceOn()         { s.Trace++ }
 
 func (s *S) Errors() *[]error { return &s.errors }
 func (s *S) ErrPush(e error)  { s.errors = append(s.errors, e) }
+func (s *S) Error() string    { return fmt.Sprintf("%v\n", s.errors) }
 
 func (s *S) ErrPop() error {
 	l := len(s.errors)

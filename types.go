@@ -351,6 +351,7 @@ type ScannerErrors interface {
 	ErrPop() error               // pop most recent error from stack
 	Expected(t int) bool         // ErrPush + return false
 	Revert(m curs.R, t int) bool // Goto(m) + Expected(t)
+	Error() string               // combine Errors() into single string
 }
 
 // Error wraps the type (T) and current scanner position (C)
