@@ -79,6 +79,20 @@ BinRange   <-- '[' Binary '-' Binary ']'    # [b101-b1111111110101010]
 HexRange   <-- '[' Hexadec '-' Hexadec ']'  # [x20-x2F] [xFFFFF - x1FFFFF]
 OctRange   <-- '[' Octal '-' Octal ']'      # [o20-o37]
 
+# PEGN itself has no requirements for any granularity beyond rounding to
+# the last second. Unlike the ISO/RFC specifications, a timezone is
+# never optional and MUST be in UTC for everything with a Z indicator.
+
+IsoDate    <-- Date Time
+Date       <-- Year '-' Month '-' Day
+Time       <-- Hour ':' Minute ':' Second 'Z' # UTC is required
+Year       <-- digit{4}
+Month      <-- (('0' [0-9]) / ('1' [0-2]))
+Day        <-- (([0-2] [0-9]) / ('3' [0-1]))
+Hour       <-- ([0-1] [0-9]) / ('2' [0-3])
+Minute     <-- ([0-5] [0-9])
+Second     <-- ([0-5] [0-9])
+
 Field      <-- uprint+
 
 String     <-- quotable+
