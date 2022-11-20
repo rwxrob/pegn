@@ -2,6 +2,8 @@ package scanner_test
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"regexp"
 
 	"github.com/rwxrob/pegn/scanner"
@@ -14,6 +16,28 @@ func ExampleS_init() {
 
 	s := scanner.New(`some thing`)
 	fmt.Println(s)
+
+}
+
+func ExampleS_package_Trace() {
+
+	// take over stderr just for this test
+	defer log.SetFlags(log.Flags())
+	defer log.SetOutput(os.Stderr)
+	defer func() { scanner.Trace = 0 }()
+	log.SetOutput(os.Stdout)
+	log.SetFlags(0)
+
+	s := scanner.New(`foo`)
+	scanner.Trace++
+	s.Scan()
+	s.Scan()
+	s.Scan()
+
+	// Output:
+	// 'f' 0-1 "oo"
+	// 'o' 1-2 "o"
+	// 'o' 2-3 ""
 
 }
 

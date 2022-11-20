@@ -16,6 +16,10 @@ import (
 	"github.com/rwxrob/pegn/curs"
 )
 
+// Trace sets the trace for everything that uses this package. Use
+// TraceOn/Off for specific scanner tracing.
+var Trace int
+
 // S (to avoid stuttering) implements a buffered data, non-linear,
 // rune-centric, scanner with regular expression support
 type S struct {
@@ -321,7 +325,7 @@ func (s *S) Scan() bool {
 	s.E += ln
 	s.R = r
 
-	if s.Trace > 0 {
+	if s.Trace > 0 || Trace > 0 {
 		s.Log()
 	}
 
