@@ -234,6 +234,9 @@ func (s Node) MarshalJSON() ([]byte, error) {
 	enc := json.NewEncoder(buf)
 	enc.SetEscapeHTML(false)
 	err := enc.Encode(n)
+	if err != nil {
+		return nil, err
+	}
 	byt := buf.Bytes()
 	return byt[:len(byt)-1], err
 }
