@@ -5,6 +5,6 @@
 
 This is the KEG Web site containing documentation for the PEGN go reference package. It is maintained dynamically using the `keg` command[^1].
 
-* [Design considerations](../2)
+* [Design considerations](2)
 
 [^1]: <https://github.com/rwxrob/keg>
