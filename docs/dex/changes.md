@@ -1,6 +1,6 @@
+* 2022-11-29 18:27:40Z [Design considerations](../9)
 * 2022-11-29 23:27:11Z [No regular expressions](../10)
 * 2022-11-29 23:26:02Z [Design considerations](../2)
-* 2022-11-29 23:25:45Z [Scan failures must push errors onto error stack](../9)
 * 2022-11-29 23:22:07Z [Scan functions must advance on success](../8)
 * 2022-11-29 23:20:40Z [Scan functions must not change state on failure](../7)
 * 2022-11-29 23:19:11Z [Scanner functions advance the scanner](../6)
