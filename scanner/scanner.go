@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"regexp"
 	"text/template"
 	"unicode/utf8"
@@ -23,26 +24,30 @@ var Trace int
 // S (to avoid stuttering) implements a buffered data, non-linear,
 // rune-centric, scanner with regular expression support
 type S struct {
-	Buf      []byte             // full buffer for lookahead or behind
-	R        rune               // last decoded/scanned rune, maybe >1byte
-	B        int                // index pointing beginning of R
-	E        int                // index pointing to end (after) R
-	Template *template.Template // for Report()
-	NewLine  []string           // []string{"\r\n","\n"} by default
-	viewlen  int                // length of bytes to show in preview
-	Trace    int                // non-zero activates tracing
+	Buf        []byte             // full buffer for lookahead or behind
+	R          rune               // last decoded/scanned rune, maybe >1byte
+	B          int                // index pointing beginning of R
+	E          int                // index pointing to end (after) R
+	Template   *template.Template // for Report()
+	NewLine    []string           // []string{"\r\n","\n"} by default
+	Trace      int                // non-zero activates tracing
+	ErrFmtFunc func(e error) string
 
-	errors []error
-	maxerr int
+	viewlen int // length of bytes to show in preview
+	errors  []error
+	maxerr  int
 }
 
 var ViewLenDefault = 10 // default length of preview window
+
+var DefaultErrFmtFunc = func(e error) string { return fmt.Sprintf("%v\n", e) }
 
 // New is a high-level scanner constructor and initializer that takes
 // a single optional argument containing any valid Buffer() argument.
 // Invalid arguments will fail (not fatal) with log output.
 func New(args ...any) *S {
 	s := new(S)
+	s.ErrFmtFunc = DefaultErrFmtFunc
 	switch len(args) {
 	case 2:
 		if c, ok := args[1].(curs.R); ok {
@@ -67,9 +72,18 @@ func (s *S) ViewLen() int     { return s.viewlen }
 func (s *S) TraceOff()        { s.Trace = 0 }
 func (s *S) TraceOn()         { s.Trace++ }
 
+func (s *S) SetErrFmtFunc(fn func(e error) string) { s.ErrFmtFunc = fn }
+
 func (s *S) Errors() *[]error { return &s.errors }
 func (s *S) ErrPush(e error)  { s.errors = append(s.errors, e) }
-func (s *S) Error() string    { return fmt.Sprintf("%v\n", s.errors) }
+
+func (s *S) Error() string {
+	var buf string
+	for _, e := range s.errors {
+		buf += s.ErrFmtFunc(e)
+	}
+	return buf
+}
 
 func (s *S) ErrPop() error {
 	l := len(s.errors)
@@ -113,16 +127,28 @@ func (s *S) CopyEB(m curs.R) string {
 	return string(s.Buf[s.E:m.B])
 }
 
+// Open opens the file at path and passes it to Buffer. Fulfills
+// pegn.Scanner.
+func (s *S) Open(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	return s.Buffer(f)
+}
+
 // Buffer sets the internal bytes buffer (Buf) and resets the existing
 // cursor values to their initial state (null, 0,0). This is useful when
 // testing in order to buffer strings as well as content from any
-// io.Reader.
+// io.Reader, []byte, []rune, or string. Fulfills pegn.Scanner.
 func (s *S) Buffer(b any) error {
 	switch v := b.(type) {
 	case string:
 		s.Buf = []byte(v)
 	case []byte:
 		s.Buf = v
+	case []rune:
+		s.Buf = []byte(string(v))
 	case io.Reader:
 		b, err := io.ReadAll(v)
 		if err != nil {

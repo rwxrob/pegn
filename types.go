@@ -172,6 +172,10 @@ type Scanner interface {
 // Must minimally accept a string, []byte, or io.Reader as input
 // parameter and load that into the *[]bytes return by Bytes method.
 //
+// Open(path string) error
+//
+// Must open the path and pass it to Buffer.
+//
 // Scan() bool
 //
 // Scans the next UNICODE code point (rune) beginning at position RuneE
@@ -189,6 +193,7 @@ type Scanner interface {
 type ScannerCore interface {
 	Bytes() *[]byte
 	Buffer(input any) error
+	Open(path string) error
 	Scan() bool
 }
 
@@ -345,13 +350,14 @@ type ScannerRangeCopy interface {
 // integer instead of a pegn.Type.
 //
 type ScannerErrors interface {
-	SetMaxErr(i int)             // sets max at which scanner will panic
-	Errors() *[]error            // returns pointer to internal errors stack
-	ErrPush(e error)             // push new error onto stack
-	ErrPop() error               // pop most recent error from stack
-	Expected(t int) bool         // ErrPush + return false
-	Revert(m curs.R, t int) bool // Goto(m) + Expected(t)
-	Error() string               // combine Errors() into single string
+	SetMaxErr(i int)                      // sets max at which scanner will panic
+	SetErrFmtFunc(f func(e error) string) // optional alternative formatted error output
+	Errors() *[]error                     // returns pointer to internal errors stack
+	ErrPush(e error)                      // push new error onto stack
+	ErrPop() error                        // pop most recent error from stack
+	Expected(t int) bool                  // ErrPush + return false
+	Revert(m curs.R, t int) bool          // Goto(m) + Expected(t)
+	Error() string                        // combine Errors() into single string
 }
 
 // Error wraps the type (T) and current scanner position (C)
@@ -365,8 +371,9 @@ type Error struct {
 	C curs.R
 }
 
-var DefaultErrFmt = `expecting %v at %v`
-
-func (e Error) Error() string {
+var DefaultErrFmt = `expecting type %v at %v`
+var DefaultErrFmtFunc = func(e Error) string {
 	return fmt.Sprintf(DefaultErrFmt, e.T, e.C)
 }
+
+func (e Error) Error() string { return DefaultErrFmtFunc(e) }

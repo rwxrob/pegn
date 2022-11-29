@@ -3,7 +3,10 @@ package pegng
 import (
 	"github.com/rwxrob/pegn"
 	"github.com/rwxrob/pegn/ast"
+	"github.com/rwxrob/pegn/scanner"
 )
+
+var Scanner = scanner.New()
 
 // NEVER REMOVE FROM LIST!
 // Append to list only (even if deprecated or not supported)
