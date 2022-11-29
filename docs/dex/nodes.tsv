@@ -1,11 +1,10 @@
 0	2022-11-29 23:09:42Z	Sorry, planned but not yet available
-1	2022-11-29 23:13:55Z	
-2	2022-11-29 23:26:02Z	Design considerations
+2	2022-11-29 23:27:40Z	Design considerations
 3	2022-11-29 23:15:38Z	C_ prefix for classes
 4	2022-11-29 23:17:17Z	Simple pegn.Scanner interface
 5	2022-11-29 23:18:18Z	Decouple meta data
 6	2022-11-29 23:19:11Z	Scanner functions advance the scanner
 7	2022-11-29 23:20:40Z	Scan functions must not change state on failure
 8	2022-11-29 23:22:07Z	Scan functions must advance on success
-9	2022-11-29 18:27:40Z	Design considerations
+9	2022-11-29 23:25:45Z	Scan failures must push errors onto error stack
 10	2022-11-29 23:27:11Z	No regular expressions
