@@ -7,16 +7,8 @@ Here's the thinking behind the design decisions as they were made.
 * [Decouple meta-data association](../5?L)
 * [All scanner functions advance the scanner themselves](../6?L)
 * [Scan functions must not change state on failure](../7?L)
-
-* **Scan functions must advance on success**
-
-If a scanner function successfully matches it must leave the scanner
-pointing to the next byte in the bytes buffer (not yet scanned) ready
-for the next scan function.
-
-* **Scan failures must push errors onto error stack**
-
-If a Scan returns false it must push an error onto the scanner's error stack. It is up to the caller to decide to disregard it or not.
+* [Scan functions must advance on success](../8?L)
+* [Scan failures must push errors onto error stack](../9?L)
 
 * **No regular expressions**
 
