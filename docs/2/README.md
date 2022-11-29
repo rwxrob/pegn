@@ -3,12 +3,9 @@
 * [Use `C_` prefix for classes to preserve identifiers](../3?L)
 * [Simplest rune pegn.Scanner interface](../4?L)
 * [Decouple meta-data association](../5?L)
+* [All scanner functions advance the scanner themselves](../6?L)
 
-* **All scanner functions advance the scanner themselves**
-
-Since it is not always clear how much of the bytes buffer will be
-needed, the task of advancing the scanner (with `s.Scan()` or however)
-is up to each scan function.
+Since it is not always clear how much of the bytes buffer will be needed, the task of advancing the scanner (with `s.Scan()` or however) is up to each scan function.
 
 * **Scan functions must not change state on fail**
 
