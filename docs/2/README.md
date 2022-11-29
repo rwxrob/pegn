@@ -1,5 +1,7 @@
 # Design considerations
 
+Here's the thinking behind the design decisions as they were made.
+
 * [Use `C_` prefix for classes to preserve identifiers](../3?L)
 * [Simplest rune pegn.Scanner interface](../4?L)
 * [Decouple meta-data association](../5?L)
