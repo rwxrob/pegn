@@ -1,6 +1,9 @@
-package pegn
+package pegng
 
-import "github.com/rwxrob/pegn/ast"
+import (
+	"github.com/rwxrob/pegn"
+	"github.com/rwxrob/pegn/ast"
+)
 
 // NEVER REMOVE FROM LIST!
 // Append to list only (even if deprecated or not supported)
@@ -12,7 +15,7 @@ const (
 /*
 // Token Definitions
 const (
-	// PEGN-tokens (pegn.dev/spec/tokens.pegn)
+	// PEGN-tokens (pegng.dev/spec/tokens.pegn)
 	TAB       = 0x0009 // "\t"
 	LF        = 0x000A // "\n" (line feed)
 	CR        = 0x000D // "\r" (carriage return)
@@ -87,7 +90,7 @@ var Is_ws = func(r rune) bool {
 	}
 }
 
-func Scan_ws(s Scanner, buf *[]rune) bool {
+func Scan_ws(s pegn.Scanner, buf *[]rune) bool {
 	m := s.Mark()
 	if !s.Scan() {
 		return false
@@ -102,7 +105,7 @@ func Scan_ws(s Scanner, buf *[]rune) bool {
 	return s.Revert(m, C_ws)
 }
 
-func Parse_ws(s Scanner) *ast.Node {
+func Parse_ws(s pegn.Scanner) *ast.Node {
 	buf := make([]rune, 0, 1)
 	if !Scan_ws(s, &buf) {
 		return nil
