@@ -1,3 +1,4 @@
+* 2022-11-29 18:20:40Z [Scan functions must not change state on failure](../7)
 * 2022-11-29 23:19:27Z [Design considerations](../2)
 * 2022-11-29 23:19:11Z [Scanner functions advance the scanner](../6)
 * 2022-11-29 23:18:18Z [Decouple meta data](../5)

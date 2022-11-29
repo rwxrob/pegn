@@ -4,14 +4,7 @@
 * [Simplest rune pegn.Scanner interface](../4?L)
 * [Decouple meta-data association](../5?L)
 * [All scanner functions advance the scanner themselves](../6?L)
-
-Since it is not always clear how much of the bytes buffer will be needed, the task of advancing the scanner (with `s.Scan()` or however) is up to each scan function.
-
-* **Scan functions must not change state on fail**
-
-The scanner performing the scan must be in exactly the same state (rune,
-byte pointer, previous byte pointer, etc.) if the scan fails (returning
-`false`). The only exception is pushing one or more errors into the scanner's memory.
+* [Scan functions must not change state on failure](../7?L)
 
 * **Scan functions must advance on success**
 
