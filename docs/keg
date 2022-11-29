@@ -1,0 +1,17 @@
+updated: 2022-11-29 18:15:38Z
+kegv:    2023-01
+
+title:   PEGN Go Reference Package
+url:     git@github.com:rwxrob/pegn.git
+creator: git@github.com:rwxrob/rwxrob.git
+state:   draft
+
+summary:
+  This is the PEGN Go reference package containing go code to parse any
+  standard PEGN grammar.
+
+indexes:
+  - file: dex/changes.md
+    summary: latest changes
+  - file: dex/nodes.tsv
+    summary: all nodes by id
