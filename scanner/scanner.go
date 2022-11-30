@@ -131,6 +131,7 @@ func (s *S) CopyEB(m curs.R) string {
 // pegn.Scanner.
 func (s *S) Open(path string) error {
 	f, err := os.Open(path)
+	defer f.Close()
 	if err != nil {
 		return err
 	}
